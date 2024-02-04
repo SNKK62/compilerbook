@@ -1,0 +1,13 @@
+name: tset
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: ./9cc
+    steps:
+      - uses: actions/checkout@v2
+      - run: make & make test
