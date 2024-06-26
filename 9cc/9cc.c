@@ -24,12 +24,18 @@ struct Token
 
 Token *token;
 
+char *user_input;
 // エラーを報告するための関数
 // printfと同じ引数を取る
-void error(char *fmt, ...)
+void error(char *loc, char *fmt, ...)
 {
   va_list ap;
   va_start(ap, fmt);
+
+  int pos = loc - user_input;
+  printf("%s\n", user_input);
+  fprintf(stderr, "%*s", pos, " "); // print pos spaces
+  fprintf(stderr, "^");
   vfprintf(stderr, fmt, ap);
   fprintf(stderr, "\n");
   exit(1);
