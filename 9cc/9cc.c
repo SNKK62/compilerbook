@@ -27,7 +27,16 @@ Token *token;
 char *user_input;
 // エラーを報告するための関数
 // printfと同じ引数を取る
-void error(char *loc, char *fmt, ...)
+void error(char *fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
+
+void error_at(char *loc, char *fmt, ...)
 {
   va_list ap;
   va_start(ap, fmt);
@@ -114,7 +123,7 @@ Token *tokenize(char *p)
       continue;
     }
 
-    error("トークナイズできません");
+    error_at(p, "トークナイズできません");
   }
 
   new_token(TK_EOF, cur, p);
@@ -129,6 +138,7 @@ int main(int argc, char **argv)
     return 1;
   }
 
+  user_input = argv[1];
   token = tokenize(argv[1]);
 
   printf(".intel_syntax noprefix\n");
