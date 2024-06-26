@@ -24,14 +24,19 @@ struct Token
 
 Token *token;
 
+// エラーを報告するための関数
+// printfと同じ引数を取る
 void error(char *fmt, ...)
 {
   va_list ap;
   va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
   fprintf(stderr, "\n");
   exit(1);
 }
 
+// 次のトークンが期待している記号のときには、トークンを1つ読み進めて
+// 真を返す。それ以外の場合には偽を返す。
 bool consume(char op)
 {
   if (token->kind != TK_RESERVED || token->str[0] != op)
@@ -40,6 +45,8 @@ bool consume(char op)
   return true;
 }
 
+// 次のトークンが期待している記号のときには、トークンを1つ読み進める。
+// それ以外の場合にはエラーを報告する。
 void expect(char op)
 {
   if (token->kind != TK_RESERVED || token->str[0] != op)
@@ -47,6 +54,8 @@ void expect(char op)
   token = token->next;
 }
 
+// 次のトークンが数値の場合、トークンを1つ読み進めてその数値を返す。
+// それ以外の場合にはエラーを報告する。
 int expect_number()
 {
   if (token->kind != TK_NUM)
@@ -61,6 +70,7 @@ bool at_eof()
   return token->kind == TK_EOF;
 }
 
+// 新しいトークンを作成してcurに繋げる
 Token *new_token(TokenKind kind, Token *cur, char *str)
 {
   Token *tok = calloc(1, sizeof(Token));
@@ -70,6 +80,7 @@ Token *new_token(TokenKind kind, Token *cur, char *str)
   return tok;
 }
 
+// 入力文字列pをトークナイズしてそれを返す
 Token *tokenize(char *p)
 {
   Token head;
