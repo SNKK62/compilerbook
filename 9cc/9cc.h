@@ -26,10 +26,10 @@ struct Token
 
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
-bool consume(Token *token, char *op);
+bool consume(Token **token, char *op);
+void expect(Token **token, char *op);
+int expect_number(Token **token);
 bool at_eof(Token *token);
-void expect(Token *token, char *op);
-int expect_number();
 Token *tokenize(char *p);
 
 // parse.c

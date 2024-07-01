@@ -30,29 +30,31 @@ void error_at(char *loc, char *fmt, ...)
 
 // 次のトークンが期待している記号のときには、トークンを1つ読み進めて
 // 真を返す。それ以外の場合には偽を返す。
-bool consume(Token *token, char *op)
+bool consume(Token **token, char *op)
 {
-  if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
+  if ((*token)->kind != TK_RESERVED || strlen(op) != (*token)->len || memcmp((*token)->str, op, (*token)->len))
     return false;
+  *token = (*token)->next;
   return true;
 }
 
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
 // それ以外の場合にはエラーを報告する。
-void expect(Token *token, char *op)
+void expect(Token **token, char *op)
 {
-  if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
-    error_at(token->str, "expected \"%s\"", op);
+  if ((*token)->kind != TK_RESERVED || strlen(op) != (*token)->len || memcmp((*token)->str, op, (*token)->len))
+    error_at((*token)->str, "expected \"%s\"", op);
+  *token = (*token)->next;
 }
 
 // 次のトークンが数値の場合、トークンを1つ読み進めてその数値を返す。
 // それ以外の場合にはエラーを報告する。
-int expect_number(Token *token)
+int expect_number(Token **token)
 {
-  if (token->kind != TK_NUM)
+  if ((*token)->kind != TK_NUM)
     error("数ではありません");
-  int val = token->val;
-  token = token->next;
+  int val = (*token)->val;
+  *token = (*token)->next;
   return val;
 }
 

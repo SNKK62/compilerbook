@@ -16,32 +16,30 @@ Node *new_node_num(int val) {
   return node;
 }
 
-Node *expr();
-Node *equality();
-Node *relational();
-Node *add();
-Node *mul();
-Node *primary();
-Node *unary();
+Node *expr(Token **tokenp);
+Node *equality(Token **tokenp);
+Node *relational(Token **tokenp);
+Node *add(Token **tokenp);
+Node *mul(Token **tokenp);
+Node *primary(Token **tokenp);
+Node *unary(Token **tokenp);
 
 // expr = equality
-Node *expr(Token **rest, Token *tok) {
-  return equality(rest, tok);
+Node *expr(Token **tokenp) {
+  return equality(tokenp);
 }
 
 // equality = relatinal ("==" relational | "!=" relational)*
-Node *equality(Token **rest, Token *tok) {
-  Node *node = relational(rest, tok);
+Node *equality(Token **tokenp) {
+  Node *node = relational(tokenp);
 
   for (;;) {
-    if (consume(*rest, "==")) {
-      *rest = (*rest)->next;
-      node = new_node(ND_EQ, node, relational(rest, *rest));
+    if (consume(tokenp, "==")) {
+      node = new_node(ND_EQ, node, relational(tokenp));
       continue;
     }
-    if (consume(*rest, "!=")) {
-      *rest = (*rest)->next;
-      node = new_node(ND_NE, node, relational(rest, *rest));
+    if (consume(tokenp, "!=")) {
+      node = new_node(ND_NE, node, relational(tokenp));
       continue;
     }
 
@@ -50,27 +48,23 @@ Node *equality(Token **rest, Token *tok) {
 }
 
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-Node *relational(Token **rest, Token *tok) {
-  Node *node = add(rest, tok);
+Node *relational(Token **tokenp) {
+  Node *node = add(tokenp);
   for (;;) {
-    if (consume(*rest, "<")) {
-      *rest = (*rest)->next;
-      node = new_node(ND_LT, node, add(rest, *rest));
+    if (consume(tokenp, "<")) {
+      node = new_node(ND_LT, node, add(tokenp));
       continue;
     }
-    if (consume(*rest, "<=")) {
-      *rest = (*rest)->next;
-      node = new_node(ND_LE, node, add(rest, *rest));
+    if (consume(tokenp, "<=")) {
+      node = new_node(ND_LE, node, add(tokenp));
       continue;
     }
-    if (consume(*rest, ">")) {
-      *rest = (*rest)->next;
-      node = new_node(ND_LT, add(rest, *rest), node);
+    if (consume(tokenp, ">")) {
+      node = new_node(ND_LT, add(tokenp), node);
       continue;
     }
-    if (consume(*rest, ">=")) {
-      *rest = (*rest)->next;
-      node = new_node(ND_LE, add(rest, *rest), node);
+    if (consume(tokenp, ">=")) {
+      node = new_node(ND_LE, add(tokenp), node);
       continue;
     }
 
@@ -79,18 +73,16 @@ Node *relational(Token **rest, Token *tok) {
 }
 
 // add = mul ("+" mul | "-" mul)*
-Node *add(Token **rest, Token *tok) {
-  Node *node = mul(rest, tok);
+Node *add(Token **tokenp) {
+  Node *node = mul(tokenp);
 
   for (;;) {
-    if (consume(*rest, "+")) {
-      *rest = (*rest)->next;
-      node = new_node(ND_ADD, node, mul(rest, *rest));
+    if (consume(tokenp, "+")) {
+      node = new_node(ND_ADD, node, mul(tokenp));
       continue;
     }
-    if (consume(*rest, "-")) {
-      *rest = (*rest)->next;
-      node = new_node(ND_SUB, node, mul(rest, *rest));
+    if (consume(tokenp, "-")) {
+      node = new_node(ND_SUB, node, mul(tokenp));
       continue;
     }
 
@@ -99,18 +91,16 @@ Node *add(Token **rest, Token *tok) {
 }
 
 // mul = unary ("*" unary | "/" unary)*
-Node *mul(Token **rest, Token *tok) {
-  Node *node = unary(rest, tok);
+Node *mul(Token **tokenp) {
+  Node *node = unary(tokenp);
 
   for (;;) {
-    if (consume(*rest, "*")) {
-      *rest = (*rest)->next;
-      node = new_node(ND_MUL, node, unary(rest, *rest));
+    if (consume(tokenp, "*")) {
+      node = new_node(ND_MUL, node, unary(tokenp));
       continue;
     }
-    if (consume(*rest, "/")) {
-      *rest = (*rest)->next;
-      node = new_node(ND_DIV, node, unary(rest, *rest));
+    if (consume(tokenp, "/")) {
+      node = new_node(ND_DIV, node, unary(tokenp));
       continue;
     }
 
@@ -119,37 +109,33 @@ Node *mul(Token **rest, Token *tok) {
 }
 
 // unary = ("+" | "-")? unary
-Node *unary(Token **rest, Token *tok) {
-  if (consume(tok, "+")) {
-    *rest = tok->next;
-    return unary(rest, *rest);
+Node *unary(Token **tokenp) {
+  if (consume(tokenp, "+")) {
+    return unary(tokenp);
   }
-  if (consume(tok, "-")) {
-    *rest = tok->next;
-    return new_node(ND_SUB, new_node_num(0), unary(rest, *rest));
+  if (consume(tokenp, "-")) {
+    return new_node(ND_SUB, new_node_num(0), unary(tokenp));
   }
-  return primary(rest, tok);
+  return primary(tokenp);
 }
 
 // primary = num | "(" expr ")"
-Node *primary(Token **rest, Token *tok) {
-  *rest = tok->next;
+Node *primary(Token **tokenp) {
   // 次のトークンが"("なら，"(" expr ")"のはず
-  if (consume(tok, "(")) {
-    Node *node = expr(rest, *rest);
-    expect(*rest, ")");
-    *rest = (*rest)->next;
+  if (consume(tokenp, "(")) {
+    Node *node = expr(tokenp);
+    expect(tokenp, ")");
     return node;
   }
   // そうでなければ数値のはず
-  return new_node_num(expect_number(tok));
+  return new_node_num(expect_number(tokenp));
 }
 
 Node *parse(Token *tok) {
-  Token **p = &tok;
-  Node *node = expr(p, tok);
-  if (!at_eof(*p))
-    error_at((*p)->str, "expected end of input");
+  Token **tokenp = &tok;
+  Node *node = expr(tokenp);
+  if (!at_eof(*tokenp))
+    error_at((*tokenp)->str, "expected end of input");
   return node;
 }
 
