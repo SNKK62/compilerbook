@@ -16,17 +16,46 @@ Node *new_node_num(int val) {
   return node;
 }
 
+void program(Token **tokenp);
+Node *stmt(Token **tokenp);
 Node *expr(Token **tokenp);
+Node *assign(Token **tokenp);
 Node *equality(Token **tokenp);
 Node *relational(Token **tokenp);
 Node *add(Token **tokenp);
 Node *mul(Token **tokenp);
-Node *primary(Token **tokenp);
 Node *unary(Token **tokenp);
+Node *primary(Token **tokenp);
 
-// expr = equality
+Node *code[100];
+
+// program = stmt*
+void program(Token **tokenp) {
+  int i = 0;
+  while (!at_eof(*tokenp)) {
+    code[i++] = stmt(tokenp);
+  }
+  code[i] = NULL;
+}
+
+// stmt = expr ";"
+Node *stmt(Token **tokenp) {
+  Node *node = expr(tokenp);
+  expect(tokenp, ";");
+  return node;
+}
+
+// expr = assign
 Node *expr(Token **tokenp) {
-  return equality(tokenp);
+  return assign(tokenp);
+}
+
+// assign = equality ("=" assign)?
+Node *assign(Token **tokenp) {
+  Node *node = equality(tokenp);
+  if (consume(tokenp, "="))
+    node = new_node(ND_ASSIGN, node, assign(tokenp));
+  return node;
 }
 
 // equality = relatinal ("==" relational | "!=" relational)*
@@ -119,7 +148,7 @@ Node *unary(Token **tokenp) {
   return primary(tokenp);
 }
 
-// primary = num | "(" expr ")"
+// primary = num | ident | "(" expr ")"
 Node *primary(Token **tokenp) {
   // 次のトークンが"("なら，"(" expr ")"のはず
   if (consume(tokenp, "(")) {
@@ -127,15 +156,23 @@ Node *primary(Token **tokenp) {
     expect(tokenp, ")");
     return node;
   }
+
+  Token *tok = *tokenp;
+  if (consume_ident(tokenp)) {
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_LVAR;
+    node->offset = (tok->str[0] - 'a' + 1) * 8;
+    return node;
+  }
   // そうでなければ数値のはず
   return new_node_num(expect_number(tokenp));
 }
 
-Node *parse(Token *tok) {
+Node **parse(Token *tok) {
   Token **tokenp = &tok;
-  Node *node = expr(tokenp);
+  program(tokenp);
   if (!at_eof(*tokenp))
     error_at((*tokenp)->str, "expected end of input");
-  return node;
+  return code;
 }
 
