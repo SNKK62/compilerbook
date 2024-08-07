@@ -28,25 +28,6 @@ void error_at(char *loc, char *fmt, ...)
   exit(1);
 }
 
-// 次のトークンが期待している記号のときには、トークンを1つ読み進めて
-// 真を返す。それ以外の場合には偽を返す。
-bool consume(Token **token, char *op)
-{
-  if ((*token)->kind != TK_RESERVED || strlen(op) != (*token)->len || memcmp((*token)->str, op, (*token)->len))
-    return false;
-  *token = (*token)->next;
-  return true;
-}
-
-bool consume_ident(Token **token) {
-  if ((*token)->kind == TK_IDENT) {
-    Token *tok = *token;
-    *token = (*token)->next;
-    return true;
-  }
-  return false;
-}
-
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
 // それ以外の場合にはエラーを報告する。
 void expect(Token **token, char *op)
@@ -125,7 +106,11 @@ Token *tokenize(char *p)
     }
 
     if ('a' <= *p && *p <= 'z') {
-      cur = new_token(TK_IDENT, cur, p++, 1);
+      char *q = p;
+      while ('a' <= *p && *p <= 'z') {
+        p++;
+      }
+      cur = new_token(TK_IDENT, cur, q, p - q);
       continue;
     }
 
