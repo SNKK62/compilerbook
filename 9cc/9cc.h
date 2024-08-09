@@ -10,6 +10,7 @@
 typedef enum
 {
   TK_RESERVED, // symbol
+  TK_RETURN,   // return
   TK_IDENT,    // identifier
   TK_NUM,      // integer token
   TK_EOF,      // token for the end of input
@@ -57,6 +58,7 @@ typedef enum {
   ND_ASSIGN, // =
   ND_LVAR, // local variables
   ND_NUM, // integer
+  ND_RETURN, // return
 } NodeKind;
 
 typedef struct Node Node;
