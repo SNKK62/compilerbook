@@ -28,14 +28,12 @@ void error_at(char *loc, char *fmt, ...)
   exit(1);
 }
 
-// 次のトークンが期待している記号のときには、トークンを1つ読み進めて
-// 真を返す。それ以外の場合には偽を返す。
-bool consume(Token **token, char *op)
-{
-  if ((*token)->kind != TK_RESERVED || strlen(op) != (*token)->len || memcmp((*token)->str, op, (*token)->len))
-    return false;
-  *token = (*token)->next;
-  return true;
+// 変数に用いることのできる文字かどうかを判定する
+bool is_alnum(char c) {
+  return ('a' <= c && c <= 'z') ||
+         ('A' <= c && c <= 'Z') ||
+         ('0' <= c && c <= '9') ||
+         (c == '_');
 }
 
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
@@ -100,9 +98,15 @@ Token *tokenize(char *p)
       continue;
     }
 
-    if (strchr("+-*/()<>", *p))
+    if (strchr("+-*/()<>=;", *p))
     {
       cur = new_token(TK_RESERVED, cur, p++, 1);
+      continue;
+    }
+
+    if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
+      cur = new_token(TK_RETURN, cur, p, 6);
+      p += 6;
       continue;
     }
 
@@ -112,6 +116,15 @@ Token *tokenize(char *p)
       char *q = p;
       cur->val = strtol(p, &p, 10);
       cur->len = p - q;
+      continue;
+    }
+
+    if (is_alnum(*p)) {
+      char *q = p;
+      while (is_alnum(*p)) {
+        p++;
+      }
+      cur = new_token(TK_IDENT, cur, q, p - q);
       continue;
     }
 
