@@ -75,7 +75,7 @@ void program(Token **tokenp) {
   code[i] = NULL;
 }
 
-// stmt = expr ";"
+// stmt = expr ";" | "return" expr ";"
 Node *stmt(Token **tokenp) {
   Node *node;
 
