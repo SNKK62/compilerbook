@@ -42,6 +42,31 @@ bool consume_ident(Token **token) {
   return false;
 }
 
+// 次のトークンが期待している記号のときには、トークンを1つ読み進める。
+// それ以外の場合にはエラーを報告する。
+void expect(Token **token, char *op)
+{
+  if ((*token)->kind != TK_RESERVED || strlen(op) != (*token)->len || memcmp((*token)->str, op, (*token)->len))
+    error_at((*token)->str, "expected \"%s\"", op);
+  *token = (*token)->next;
+}
+
+// 次のトークンが数値の場合、トークンを1つ読み進めてその数値を返す。
+// それ以外の場合にはエラーを報告する。
+int expect_number(Token **token)
+{
+  if ((*token)->kind != TK_NUM)
+    error("数ではありません");
+  int val = (*token)->val;
+  *token = (*token)->next;
+  return val;
+}
+
+bool at_eof(Token *token)
+{
+  return token->kind == TK_EOF;
+}
+
 LVar *locals = NULL;
 
 // 変数を名前で検索する。見つからなかった場合はNULLを返す。
@@ -261,7 +286,7 @@ Node *unary(Token **tokenp) {
   return primary(tokenp);
 }
 
-// primary = num | ident ("(" ")")? | "(" expr ")" 
+// primary = num | ident ("(" (exp (, expr)*)? ")")? | "(" expr ")" 
 Node *primary(Token **tokenp) {
   // 次のトークンが"("なら，"(" expr ")"のはず
   if (consume(tokenp, "(")) {
@@ -276,9 +301,24 @@ Node *primary(Token **tokenp) {
       Node *node = calloc(1, sizeof(Node));
       node->kind = ND_FUNC;
       node->funcName = calloc(1, tok->len);
-      strncpy(node->funcName, tok->str, tok->len);
+      strncpy(node->funcName, tok->str, tok->len);;
 
-      expect(tokenp, ")");
+      if (!consume(tokenp, ")")) {
+        int i = 0;
+        while(true) {
+          Token *token = *tokenp;
+          if(token->kind == TK_NUM) {
+            node->argv[i] = token->val;
+            i++;
+            *tokenp = token->next;
+          }
+          if (consume(tokenp, ")")) {
+            break;
+          }
+          expect(tokenp, ",");
+        }
+      }
+
       return node;
     }
 

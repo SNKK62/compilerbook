@@ -76,6 +76,7 @@ struct Node {
   int val; // kindがND_NUMの場合のみ使う
   int offset; // kindがND_LVARの場合のみ使う
   char* funcName; // kindがND_FUNCの場合のみ使う
+  int argv[3]; // kindがND_FUNCの場合のみ使う
 };
 
 Node **parse(Token *tok);

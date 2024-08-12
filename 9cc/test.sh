@@ -85,5 +85,7 @@ assert 255 'foo();' "true"
 assert 255 'a = 1; if (a < 2) {foo();}' "true"
 assert 255 'a = 1; if (a > 2) {return 0;} else {foo();}' "true"
 
+assert 255 'bar(1, 2, 3);' "true"
+
 echo OK
 
