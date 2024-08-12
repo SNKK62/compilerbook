@@ -76,12 +76,32 @@ void program(Token **tokenp) {
 }
 
 // stmt = expr ";" 
+// | "{" stmt* "}"
 // | "return" expr ";"
 // | "if" "(" expr ")" stmt ("else" stmt)?
 // | "while" "(" expr ")" stmt
 // | "for" "(" expr? ";" expr? ";" expr? ")" stmt
 Node *stmt(Token **tokenp) {
   Node *node;
+
+  if (consume(tokenp, "{")) {
+    node = calloc(1, sizeof(Node));
+
+    Node *cur = calloc(1, sizeof(Node));
+    node = cur;
+    cur->kind = ND_BLOCK;
+    cur->lhs = NULL;
+    while (!consume(tokenp, "}")) {
+      cur->lhs = stmt(tokenp);
+      Node *next = calloc(1, sizeof(Node));
+      next->kind = ND_BLOCK;
+      next->lhs = NULL;
+      cur->rhs = next;
+      cur = next;
+    }
+    cur->rhs = NULL;
+    return node;
+  }
 
   if (consume_return(tokenp)) {
     node = calloc(1, sizeof(Node));
