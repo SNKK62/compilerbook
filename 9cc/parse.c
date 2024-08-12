@@ -119,16 +119,16 @@ Node *stmt(Token **tokenp) {
     Node *ternary= NULL;
     if (!consume(tokenp, ";")) {
       lhs = expr(tokenp);
+      expect(tokenp, ";");
     }
-    expect(tokenp, ";");
     if (!consume(tokenp, ";")) {
       rhs = expr(tokenp);
+      expect(tokenp, ";");
     }
-    expect(tokenp, ";");
     if (!consume(tokenp, ")")) {
       ternary = expr(tokenp);
+      expect(tokenp, ")");
     }
-    expect(tokenp, ")");
     node = new_node(ND_FOR, lhs, new_node(ND_FOR, rhs, new_node(ND_FOR, ternary, stmt(tokenp))));
     return node;
   }
