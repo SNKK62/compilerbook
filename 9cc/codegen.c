@@ -34,6 +34,17 @@ void gen(Node *node) {
       printf("  mov [rax], rdi\n");
       printf("  push rdi\n");
       return;
+    case ND_BLOCK:
+      while (node) {
+        if (node->lhs) {
+          gen(node->lhs);
+          if (node->rhs) {
+            printf("  pop rax\n");
+          }
+        }
+        node = node->rhs;
+      }
+      return;
     case ND_RETURN:
       gen(node->lhs);
 
