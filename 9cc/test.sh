@@ -82,6 +82,8 @@ assert 1 'a = 1; if (a < 2) {if (a > 2) {return 1;} else {return a;}} else {retu
 
 # foo()を呼んだら255が返ってきた
 assert 255 'foo();' "true"
+assert 255 'a = 1; if (a < 2) {foo();}' "true"
+assert 255 'a = 1; if (a > 2) {return 0;} else {foo();}' "true"
 
 echo OK
 
