@@ -75,7 +75,9 @@ void program(Token **tokenp) {
   code[i] = NULL;
 }
 
-// stmt = expr ";" | "return" expr ";"
+// stmt = expr ";" 
+// | "return" expr ";"
+// | "if" "(" expr ")" stmt ("else" stmt)?
 Node *stmt(Token **tokenp) {
   Node *node;
 
@@ -83,10 +85,18 @@ Node *stmt(Token **tokenp) {
     node = calloc(1, sizeof(Node));
     node->kind = ND_RETURN;
     node->lhs = expr(tokenp);
-  } else {
-    node = expr(tokenp);
+    expect(tokenp, ";");
+    return node;
   }
 
+  if (consume(tokenp, "if")) {
+    Node *lhs = expr(tokenp);
+    Node *rhs = stmt(tokenp);
+    node = new_node(ND_IF, lhs, rhs);
+    return node;
+  } 
+
+  node = expr(tokenp);
   expect(tokenp, ";");
   return node;
 }
@@ -96,11 +106,11 @@ Node *expr(Token **tokenp) {
   return assign(tokenp);
 }
 
-// assign = equality ("=" assign)?
+// assign = equality ("=" equality)?
 Node *assign(Token **tokenp) {
   Node *node = equality(tokenp);
   if (consume(tokenp, "="))
-    node = new_node(ND_ASSIGN, node, assign(tokenp));
+    node = new_node(ND_ASSIGN, node, equality(tokenp));
   return node;
 }
 
@@ -183,7 +193,7 @@ Node *mul(Token **tokenp) {
   }
 }
 
-// unary = ("+" | "-")? unary
+// unary = ("+" | "-")? unary | pimary
 Node *unary(Token **tokenp) {
   if (consume(tokenp, "+")) {
     return unary(tokenp);
