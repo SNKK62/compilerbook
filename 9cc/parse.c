@@ -305,6 +305,7 @@ Node *primary(Token **tokenp) {
 
       if (!consume(tokenp, ")")) {
         int i = 0;
+        node->argv = calloc(6, sizeof(int));
         while(true) {
           Token *token = *tokenp;
           if(token->kind == TK_NUM) {
@@ -317,6 +318,7 @@ Node *primary(Token **tokenp) {
           }
           expect(tokenp, ",");
         }
+        node->argc = i;
       }
 
       return node;

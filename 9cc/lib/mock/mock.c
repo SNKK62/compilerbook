@@ -10,3 +10,7 @@ int bar(int a, int b, int c) {
   return 1;
 }
 
+int hoge(int a, int b) {
+  printf("hoge has called!!!! with a:%d, b:%d\n", a, b);
+  return 1;
+}
