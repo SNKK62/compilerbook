@@ -78,6 +78,7 @@ void program(Token **tokenp) {
 // stmt = expr ";" 
 // | "return" expr ";"
 // | "if" "(" expr ")" stmt ("else" stmt)?
+// | "while" "(" expr ")" stmt
 Node *stmt(Token **tokenp) {
   Node *node;
 
@@ -100,6 +101,15 @@ Node *stmt(Token **tokenp) {
     node = new_node(ND_IF, lhs, rhs);
     return node;
   } 
+
+  if (consume(tokenp, "while")) {
+    expect(tokenp, "(");
+    Node *lhs = expr(tokenp);
+    expect(tokenp, ")");
+    Node *rhs = stmt(tokenp);
+    node = new_node(ND_WHILE, lhs, rhs);
+    return node;
+  }
 
   node = expr(tokenp);
   expect(tokenp, ";");
