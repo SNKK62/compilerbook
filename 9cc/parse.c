@@ -261,7 +261,7 @@ Node *unary(Token **tokenp) {
   return primary(tokenp);
 }
 
-// primary = num | ident | "(" expr ")"
+// primary = num | ident ("(" ")")? | "(" expr ")" 
 Node *primary(Token **tokenp) {
   // 次のトークンが"("なら，"(" expr ")"のはず
   if (consume(tokenp, "(")) {
@@ -272,6 +272,17 @@ Node *primary(Token **tokenp) {
 
   Token *tok = *tokenp;
   if (consume_ident(tokenp)) {
+    if (consume(tokenp, "(")) {
+      Node *node = calloc(1, sizeof(Node));
+      node->kind = ND_FUNC;
+      node->funcName = calloc(1, tok->len);
+      strncpy(node->funcName, tok->str, tok->len);
+
+      expect(tokenp, ")");
+      return node;
+    }
+
+
     Node *node = calloc(1, sizeof(Node));
     node->kind = ND_LVAR;
 
