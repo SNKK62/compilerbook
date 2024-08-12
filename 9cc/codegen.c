@@ -9,6 +9,11 @@ void gen_lval(Node *node) {
   printf("  push rax\n");
 }
 
+int gen_label() {
+  int static id = 0;
+  return id++;
+}
+
 void gen(Node *node) {
   switch(node->kind) {
     case ND_NUM:
@@ -37,7 +42,66 @@ void gen(Node *node) {
       printf("  pop rbp\n");
       printf("  ret\n");
       return;
-  }
+    case ND_IF:
+      gen(node->lhs);
+
+      printf("  pop rax\n");
+      printf("  cmp rax, 0\n");
+
+      if (node->rhs->kind == ND_ELSE) {
+        int else_id = gen_label();
+        printf("  je  .Lelse%d\n", else_id);
+        gen(node->rhs->lhs);
+        int end_id = gen_label();
+        printf("  jmp  .Lend%d\n", end_id);
+        printf(".Lelse%d:\n", else_id);
+        gen(node->rhs->rhs);
+        printf(".Lend%d:\n", end_id);
+        return;
+      }
+
+      int end_id = gen_label();
+      printf("  je  .Lend%d\n", end_id);
+      gen(node->rhs);
+      printf(".Lend%d:\n", end_id);
+      return;
+    case ND_WHILE:
+      {
+        int begin_id = gen_label();
+        printf(".Lbegin%d:\n", begin_id);
+        gen(node->lhs);
+
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        int end_id = gen_label();
+        printf("  je  .Lend%d\n", end_id);
+        gen(node->rhs);
+
+        printf("  jmp .Lbegin%d\n", begin_id);
+        printf(".Lend%d:\n", end_id);
+        return;
+      }
+    case ND_FOR:
+      {
+        int begin_id = gen_label();
+        int end_id = gen_label();
+        if (node->lhs) gen(node->lhs);
+        printf(".Lbegin%d:\n", begin_id);
+        if (node->rhs->lhs) gen(node->rhs->lhs);
+
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        printf("  je  .Lend%d\n", end_id);
+
+        gen(node->rhs->rhs->rhs);
+
+        if (node->rhs->rhs->lhs) gen(node->rhs->rhs->lhs);
+
+        printf("  jmp .Lbegin%d\n", begin_id);
+        printf(".Lend%d:\n", end_id);
+        return;
+      }
+    }
 
   gen(node->lhs);
   gen(node->rhs);

@@ -51,4 +51,14 @@ assert 6 'foo = 1; bar = 2 + 3; foo + bar;'
 assert 6 'foo = 1; bar = 2 + 3; return foo + bar;'
 assert 5 'foo = 1; bar = foo + 3; return foo + bar;'
 
+assert 1 'if (1 < 2) return 1;'
+assert 1 'if (1 < 2) return 1; else return 0;'
+assert 0 'if (1 > 2) return 1; else return 0;'
+
+assert 3 'i = 0; while (i < 3) i = i + 1; return i;'
+
+assert 3 'b = 0; for(i = 0; i < 3; i = i + 1) b = b + 1; return b;'
+assert 3 'b = 0; i = 0; for(; i < 3; i = i + 1) b = b + 1; return b;'
+assert 3 'b = 0; for(; b < 3; ) b = b + 1; return b;'
+
 echo OK
