@@ -63,5 +63,6 @@ assert 3 'b = 0; for(; b < 3; ) b = b + 1; return b;'
 
 assert 2 'a = 1; if (a < 2) {return 2;} else {return 3;}'
 assert 2 'a = 1; if (a < 2) {} return a+1;'
+assert 1 'a = 1; if (a < 2) {if (a > 2) {return 1;} else {return a;}} else {return 3;}'
 
 echo OK
