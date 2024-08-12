@@ -9,7 +9,10 @@ void gen_lval(Node *node) {
   printf("  push rax\n");
 }
 
-int label_num = 0;
+int gen_label() {
+  int static id = 0;
+  return id++;
+}
 
 void gen(Node *node) {
   switch(node->kind) {
@@ -44,11 +47,23 @@ void gen(Node *node) {
 
       printf("  pop rax\n");
       printf("  cmp rax, 0\n");
-      printf("  je  .Lend%d\n", label_num);
 
+      if (node->rhs->kind == ND_ELSE) {
+        int else_id = gen_label();
+        printf("  je  .Lelse%d\n", else_id);
+        gen(node->rhs->lhs);
+        int end_id = gen_label();
+        printf("  jmp  .Lend%d\n", end_id);
+        printf(".Lelse%d:\n", else_id);
+        gen(node->rhs->rhs);
+        printf(".Lend%d:\n", end_id);
+        return;
+      }
+
+      int end_id = gen_label();
+      printf("  je  .Lend%d\n", end_id);
       gen(node->rhs);
-
-      printf(".Lend%d:\n", label_num++);
+      printf(".Lend%d:\n", end_id);
       return;
   }
 

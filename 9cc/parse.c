@@ -90,8 +90,13 @@ Node *stmt(Token **tokenp) {
   }
 
   if (consume(tokenp, "if")) {
+    expect(tokenp, "(");
     Node *lhs = expr(tokenp);
+    expect(tokenp, ")");
     Node *rhs = stmt(tokenp);
+    if (consume(tokenp, "else")) {
+      rhs = new_node(ND_ELSE, rhs, stmt(tokenp));
+    }
     node = new_node(ND_IF, lhs, rhs);
     return node;
   } 

@@ -52,6 +52,7 @@ assert 6 'foo = 1; bar = 2 + 3; return foo + bar;'
 assert 5 'foo = 1; bar = foo + 3; return foo + bar;'
 
 assert 1 'if (1 < 2) return 1;'
-# assert 0 'if (1 > 2) return 0;'
+assert 1 'if (1 < 2) return 1; else return 0;'
+assert 0 'if (1 > 2) return 1; else return 0;'
 
 echo OK
