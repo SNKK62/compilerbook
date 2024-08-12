@@ -57,4 +57,6 @@ assert 0 'if (1 > 2) return 1; else return 0;'
 
 assert 3 'i = 0; while (i < 3) i = i + 1; return i;'
 
+assert 3 'b = 0; for(i = 0; i < 3; i = i + 1) b = b + 1; return b;'
+
 echo OK

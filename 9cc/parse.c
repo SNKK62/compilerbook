@@ -79,6 +79,7 @@ void program(Token **tokenp) {
 // | "return" expr ";"
 // | "if" "(" expr ")" stmt ("else" stmt)?
 // | "while" "(" expr ")" stmt
+// | "for" "(" expr? ";" expr? ";" expr? ")" stmt
 Node *stmt(Token **tokenp) {
   Node *node;
 
@@ -108,6 +109,27 @@ Node *stmt(Token **tokenp) {
     expect(tokenp, ")");
     Node *rhs = stmt(tokenp);
     node = new_node(ND_WHILE, lhs, rhs);
+    return node;
+  }
+
+  if (consume(tokenp, "for")) {
+    expect(tokenp, "(");
+    Node *lhs = NULL;
+    Node *rhs = NULL;
+    Node *ternary= NULL;
+    if (!consume(tokenp, ";")) {
+      lhs = expr(tokenp);
+    }
+    expect(tokenp, ";");
+    if (!consume(tokenp, ";")) {
+      rhs = expr(tokenp);
+    }
+    expect(tokenp, ";");
+    if (!consume(tokenp, ")")) {
+      ternary = expr(tokenp);
+    }
+    expect(tokenp, ")");
+    node = new_node(ND_FOR, lhs, new_node(ND_FOR, rhs, new_node(ND_FOR, ternary, stmt(tokenp))));
     return node;
   }
 

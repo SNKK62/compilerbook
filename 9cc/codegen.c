@@ -81,6 +81,26 @@ void gen(Node *node) {
         printf(".Lend%d:\n", end_id);
         return;
       }
+    case ND_FOR:
+      {
+        int begin_id = gen_label();
+        int end_id = gen_label();
+        if (node->lhs) gen(node->lhs);
+        printf(".Lbegin%d:\n", begin_id);
+        if (node->rhs->lhs) gen(node->rhs->lhs);
+
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        printf("  je  .Lend%d\n", end_id);
+
+        gen(node->rhs->rhs->rhs);
+
+        if (node->rhs->rhs->lhs) gen(node->rhs->rhs->lhs);
+
+        printf("  jmp .Lbegin%d\n", begin_id);
+        printf(".Lend%d:\n", end_id);
+        return;
+      }
     }
 
   gen(node->lhs);
