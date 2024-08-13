@@ -1,5 +1,15 @@
 #include "9cc.h"
 
+// 関数に引数を渡す際の第1引数から第6までは、どのレジスタにセットするかはきまってるので、配列で保持しておく。
+char map_func_argv_register[6][4] = {
+  "rdi",
+  "rsi",
+  "rdx",
+  "rcx",
+  "r8",
+  "r9",
+};
+
 void gen_lval(Node *node) {
   if (node->kind != ND_LVAR)
     error("代入の左辺値が変数ではありません");
@@ -45,18 +55,13 @@ void gen(Node *node) {
 
          // 関数呼び出しから戻ったときに、rspが調整されているかどうかを判別するために使う
         printf("  mov r11, 1\n");
-
         printf(".Lrsp%d:\n", rsp_label_id);
+
         // 第一引数はrdiレジスタ、、、のように決まってるみたい
-        // ひとまず、固定でセット
-        if (node->argc >= 1) {
-          printf("  mov rdi, %d\n", node->argv[0]);
-        }
-        if (node->argc >= 2) {
-          printf("  mov rsi, %d\n", node->argv[1]);
-        }
-        if (node->argc >= 3) {
-          printf("  mov rdx, %d\n", node->argv[2]);
+        for(int i = 0; i < node->argc; i++) {
+          gen(node->argv[i]);
+          printf("  pop rax\n");
+          printf("  mov %s, rax\n", map_func_argv_register[i]);
         }
 
         printf("  call %s\n", node->funcName);
@@ -85,6 +90,13 @@ void gen(Node *node) {
         // 変数26個分の領域を確保する
         printf("  sub rsp, 208\n");
 
+        // 第一引数はrdiレジスタ、、、のように決まってるみたい
+        for(int i = 0; i < node->argc; i++) {
+          gen_lval(node->argv[i]);
+          printf("  pop rax\n");
+          printf("  mov [rax], %s\n", map_func_argv_register[i]);
+        }
+
         return;
       }
     case ND_FUNC_DEF_END:
@@ -108,7 +120,7 @@ void gen(Node *node) {
       printf("  pop rdi\n");
       printf("  pop rax\n");
       printf("  mov [rax], rdi\n");
-      printf("  push rdi\n");
+      /* printf("  push rdi\n"); */
       return;
     case ND_BLOCK:
       while (node) {

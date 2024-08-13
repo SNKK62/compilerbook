@@ -1,5 +1,16 @@
 #include "9cc.h"
 
+void program(Token **tokenp);
+Node *stmt(Token **tokenp);
+Node *expr(Token **tokenp);
+Node *assign(Token **tokenp);
+Node *equality(Token **tokenp);
+Node *relational(Token **tokenp);
+Node *add(Token **tokenp);
+Node *mul(Token **tokenp);
+Node *unary(Token **tokenp);
+Node *primary(Token **tokenp);
+
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
@@ -7,7 +18,6 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   node->rhs = rhs;
   return node;
 }
-
 
 Node *new_node_num(int val) {
   Node *node = calloc(1, sizeof(Node));
@@ -62,14 +72,11 @@ bool at_eof(Token *token)
 void parse_argv(Token **tokenp, Node *node) {
   if (!consume(tokenp, ")")) {
     int i = 0;
-    node->argv = calloc(6, sizeof(int));
+    node->argv = calloc(6, sizeof(Node));
     while(true) {
       Token *token = *tokenp;
-      if(token->kind == TK_NUM) {
-        node->argv[i] = token->val;
-        i++;
-        *tokenp = token->next;
-      }
+      node->argv[i] = expr(tokenp);
+      i++;
       if (consume(tokenp, ")")) {
         break;
       }
@@ -111,17 +118,6 @@ LVar *find_lvar(Token *tok) {
   }
   return NULL;
 }
-
-void program(Token **tokenp);
-Node *stmt(Token **tokenp);
-Node *expr(Token **tokenp);
-Node *assign(Token **tokenp);
-Node *equality(Token **tokenp);
-Node *relational(Token **tokenp);
-Node *add(Token **tokenp);
-Node *mul(Token **tokenp);
-Node *unary(Token **tokenp);
-Node *primary(Token **tokenp);
 
 Node *code[100];
 
