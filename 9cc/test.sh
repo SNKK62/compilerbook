@@ -90,6 +90,7 @@ assert 0 'main(){bar(1, 2, 3);}' "true"
 
 assert 4 'main(){bar() * 2;}bar() {return 2;}'
 assert 10 'main(){ a = 1; sum(4, a) * 2;} sum(a, b) {return a + b;}'
+assert 5 'main() {return fibonacci(5);} fibonacci(n){ if(n == 1) return 1; if(n == 2) return 1; return fibonacci(n - 1) + fibonacci(n - 2);}'
 
 echo OK
 
