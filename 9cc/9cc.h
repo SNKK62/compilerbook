@@ -10,7 +10,6 @@
 typedef enum
 {
   TK_RESERVED, // symbol
-  TK_RETURN,   // return
   TK_IDENT,    // identifier
   TK_NUM,      // integer token
   TK_EOF,      // token for the end of input
@@ -65,6 +64,8 @@ typedef enum {
   ND_FOR, // for
   ND_BLOCK, // block
   ND_FUNC, // function
+  ND_FUNC_DEF,      // definition of function
+  ND_FUNC_DEF_END,  // end of function definition
 } NodeKind;
 
 typedef struct Node Node;
@@ -76,7 +77,7 @@ struct Node {
   int val; // kindがND_NUMの場合のみ使う
   int offset; // kindがND_LVARの場合のみ使う
   char* funcName; // kindがND_FUNCの場合のみ使う
-  int *argv; // kindがND_FUNCの場合のみ使う
+  Node **argv; // kindがND_FUNCの場合のみ使う
   int argc; // kindがND_FUNCの場合のみ使う
 };
 
