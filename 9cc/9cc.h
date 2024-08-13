@@ -54,6 +54,8 @@ typedef enum {
   ND_NE, // !=
   ND_LT, // <
   ND_LE, // <=
+  ND_ADDR, // &
+  ND_DEREF, // *
   ND_ASSIGN, // =
   ND_LVAR, // local variables
   ND_NUM, // integer

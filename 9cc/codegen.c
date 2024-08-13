@@ -197,7 +197,16 @@ void gen(Node *node) {
         printf(".Lend%d:\n", end_id);
         return;
       }
-    }
+    case ND_ADDR:
+      gen_lval(node->lhs);
+      return;
+    case ND_DEREF:
+      gen(node->lhs);
+      printf("  pop rax\n");
+      printf("  mov rax, [rax]\n");
+      printf("  push rax\n");
+      return;
+  }
 
   gen(node->lhs);
   gen(node->rhs);

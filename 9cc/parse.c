@@ -131,6 +131,8 @@ void program(Token **tokenp) {
 }
 
 // stmt = expr ";" 
+// | ident "(" (expr (, expr)*)? ")" "{"
+// | "}"
 // | "{" stmt* "}"
 // | "return" expr ";"
 // | "if" "(" expr ")" stmt ("else" stmt)?
@@ -317,13 +319,22 @@ Node *mul(Token **tokenp) {
   }
 }
 
-// unary = ("+" | "-")? unary | pimary
+// unary = ("+" | "-")? unary 
+// | "*" unary
+// | "&" unary
+// | primary
 Node *unary(Token **tokenp) {
   if (consume(tokenp, "+")) {
     return unary(tokenp);
   }
   if (consume(tokenp, "-")) {
     return new_node(ND_SUB, new_node_num(0), unary(tokenp));
+  }
+  if (consume(tokenp, "&")) {
+    return new_node(ND_ADDR, unary(tokenp), NULL);
+  }
+  if (consume(tokenp, "*")) {
+    return new_node(ND_DEREF, unary(tokenp), NULL);
   }
   return primary(tokenp);
 }
