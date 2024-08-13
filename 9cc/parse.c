@@ -26,14 +26,6 @@ bool consume(Token **token, char *op)
   return true;
 }
 
-bool consume_return(Token **token) {
-  if ((*token)->kind == TK_RETURN) {
-    *token = (*token)->next;
-    return true;
-  }
-  return false;
-}
-
 bool consume_ident(Token **token) {
   if ((*token)->kind == TK_IDENT) {
     *token = (*token)->next;
@@ -65,6 +57,48 @@ int expect_number(Token **token)
 bool at_eof(Token *token)
 {
   return token->kind == TK_EOF;
+}
+
+void parse_argv(Token **tokenp, Node *node) {
+  if (!consume(tokenp, ")")) {
+    int i = 0;
+    node->argv = calloc(6, sizeof(int));
+    while(true) {
+      Token *token = *tokenp;
+      if(token->kind == TK_NUM) {
+        node->argv[i] = token->val;
+        i++;
+        *tokenp = token->next;
+      }
+      if (consume(tokenp, ")")) {
+        break;
+      }
+      expect(tokenp, ",");
+    }
+    node->argc = i;
+  }
+}
+
+bool is_top_level = true;
+
+Node *expect_func_definition(Token **tokenp)
+{
+  Token *tok = *tokenp;
+  if(!consume_ident(tokenp)) error_at((*tokenp)->str, "トップレベルは関数しか書けません");
+
+  expect(tokenp, "(");
+
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_FUNC_DIF;
+  node->funcName = calloc(1, tok->len);
+  strncpy(node->funcName, tok->str, tok->len);
+
+  // 引数をパース )も読み飛ばしてる
+  parse_argv(tokenp, node);
+
+  expect(tokenp, "{");
+
+  return node;
 }
 
 LVar *locals = NULL;
@@ -108,6 +142,11 @@ void program(Token **tokenp) {
 // | "for" "(" expr? ";" expr? ";" expr? ")" stmt
 Node *stmt(Token **tokenp) {
   Node *node;
+  if(is_top_level) {
+    node = expect_func_definition(tokenp);
+    is_top_level = false;
+    return node;
+  }
 
   if (consume(tokenp, "{")) {
     node = calloc(1, sizeof(Node));
@@ -128,7 +167,7 @@ Node *stmt(Token **tokenp) {
     return node;
   }
 
-  if (consume_return(tokenp)) {
+  if (consume(tokenp, "return")) {
     node = calloc(1, sizeof(Node));
     node->kind = ND_RETURN;
     node->lhs = expr(tokenp);
@@ -175,6 +214,13 @@ Node *stmt(Token **tokenp) {
       expect(tokenp, ")");
     }
     node = new_node(ND_FOR, lhs, new_node(ND_FOR, rhs, new_node(ND_FOR, ternary, stmt(tokenp))));
+    return node;
+  }
+
+  if(consume(tokenp, "}")) {
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_FUNC_DIF_END;
+    is_top_level = true;
     return node;
   }
 
@@ -303,23 +349,7 @@ Node *primary(Token **tokenp) {
       node->funcName = calloc(1, tok->len);
       strncpy(node->funcName, tok->str, tok->len);;
 
-      if (!consume(tokenp, ")")) {
-        int i = 0;
-        node->argv = calloc(6, sizeof(int));
-        while(true) {
-          Token *token = *tokenp;
-          if(token->kind == TK_NUM) {
-            node->argv[i] = token->val;
-            i++;
-            *tokenp = token->next;
-          }
-          if (consume(tokenp, ")")) {
-            break;
-          }
-          expect(tokenp, ",");
-        }
-        node->argc = i;
-      }
+      parse_argv(tokenp, node);
 
       return node;
     }

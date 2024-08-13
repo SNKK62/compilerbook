@@ -59,6 +59,32 @@ void gen(Node *node) {
         printf("  call %s\n", node->funcName);
         return;
       }
+    case ND_FUNC_DIF:
+      {
+        printf("%s:\n", node->funcName);
+
+        // プロローグ処理
+        printf("  push rbp\n");
+        printf("  mov rbp, rsp\n");
+        // 変数26個分の領域を確保する
+        printf("  sub rsp, 208\n");
+
+        return;
+      }
+    case ND_FUNC_DIF_END:
+      {
+        // ここのアセンブリが実行されるパターンは、関数でreturnしていないとき
+        // returnしていないときはNULLを返したほうがいいんだろうけど、
+        // ひとまず直前の式の結果がスタックトップにあると思うので、それを返すようにする
+        printf("  pop rax\n");
+
+        // エピローグ
+        printf("  mov rsp, rbp\n");
+        printf("  pop rbp\n");
+        printf("  ret\n");
+
+        return;
+      }
     case ND_ASSIGN:
       gen_lval(node->lhs);
       gen(node->rhs);
@@ -82,6 +108,8 @@ void gen(Node *node) {
     case ND_RETURN:
       gen(node->lhs);
 
+      // スタックトップに式全体の値が残っているはずなので
+      // それをRAXにロードして関数からの返り値とする
       printf("  pop rax\n");
       printf("  mov rsp, rbp\n");
       printf("  pop rbp\n");
