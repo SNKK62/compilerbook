@@ -88,5 +88,8 @@ assert 0 'main(){foo();}' "true"
 assert 0 'main(){bar(1, 2, 3);}' "true"
 # assert 0 'hoge(1, 2);' "true"
 
+# TODO: 未実装
+# assert 10 'main(){a = 1; sum(1, 4) * 2;} sum(a, b) {return a + b;}'
+
 echo OK
 
