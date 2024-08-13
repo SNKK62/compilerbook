@@ -13,6 +13,7 @@ typedef enum
   TK_IDENT,    // identifier
   TK_NUM,      // integer token
   TK_EOF,      // token for the end of input
+  TK_INT,      // token for int
 } TokenKind;
 
 typedef struct Token Token;

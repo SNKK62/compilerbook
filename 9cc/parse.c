@@ -69,6 +69,19 @@ bool at_eof(Token *token)
   return token->kind == TK_EOF;
 }
 
+bool is_top_level = true;
+
+LVar *locals = NULL;
+
+// 変数を名前で検索する。見つからなかった場合はNULLを返す。
+LVar *find_lvar(Token *tok) {
+  for (LVar *var = locals; var; var = var->next) {
+    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
+      return var;
+  }
+  return NULL;
+}
+
 void parse_argv(Token **tokenp, Node *node) {
   if (!consume(tokenp, ")")) {
     int i = 0;
@@ -86,10 +99,54 @@ void parse_argv(Token **tokenp, Node *node) {
   }
 }
 
-bool is_top_level = true;
+void parse_def_argv(Token **tokenp, Node *node) {
+  if (!consume(tokenp, ")")) {
+    int i = 0;
+    node->argv = calloc(6, sizeof(Node));
+    while(true) {
+      if ((*tokenp)->kind != TK_INT) error_at((*tokenp)->str, "intの宣言をしていません");
+      *tokenp = (*tokenp)->next;
+
+      Node *arg = calloc(1, sizeof(Node));
+      arg->kind = ND_LVAR;
+
+      Token *token = *tokenp;
+      if(!consume_ident(tokenp)) {
+        error_at((*tokenp)->str, "変数名がありません");
+      }
+      LVar *lvar = find_lvar(token);
+      if (lvar) {
+        arg->offset = lvar->offset;
+      } else {
+        lvar = calloc(1, sizeof(LVar));
+        lvar->next = locals;
+        lvar->name = token->str;
+        lvar->len = token->len;
+        if (locals) {
+          lvar->offset = locals->offset + 8;
+        } else {
+          lvar->offset = 8;
+        }
+        arg->offset = lvar->offset;
+        locals = lvar;
+      }
+      node->argv[i] = arg;
+
+      i++;
+      if (consume(tokenp, ")")) {
+        break;
+      }
+      expect(tokenp, ",");
+    }
+    node->argc = i;
+  }
+}
 
 Node *expect_func_definition(Token **tokenp)
 {
+  if ((*tokenp)->kind != TK_INT) error_at((*tokenp)->str, "intの宣言をしていません");
+  *tokenp = (*tokenp)->next;
+
   Token *tok = *tokenp;
   if(!consume_ident(tokenp)) error_at((*tokenp)->str, "トップレベルは関数しか書けません");
 
@@ -101,22 +158,11 @@ Node *expect_func_definition(Token **tokenp)
   strncpy(node->funcName, tok->str, tok->len);
 
   // 引数をパース )も読み飛ばしてる
-  parse_argv(tokenp, node);
+  parse_def_argv(tokenp, node);
 
   expect(tokenp, "{");
 
   return node;
-}
-
-LVar *locals = NULL;
-
-// 変数を名前で検索する。見つからなかった場合はNULLを返す。
-LVar *find_lvar(Token *tok) {
-  for (LVar *var = locals; var; var = var->next) {
-    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
-      return var;
-  }
-  return NULL;
 }
 
 Node *code[100];
@@ -131,8 +177,9 @@ void program(Token **tokenp) {
 }
 
 // stmt = expr ";" 
-// | ident "(" (expr (, expr)*)? ")" "{"
+// | "int" ident "(" (expr (, expr)*)? ")" "{"
 // | "}"
+// | "int" ident (, ident)* ";"
 // | "{" stmt* "}"
 // | "return" expr ";"
 // | "if" "(" expr ")" stmt ("else" stmt)?
@@ -144,6 +191,36 @@ Node *stmt(Token **tokenp) {
     node = expect_func_definition(tokenp);
     is_top_level = false;
     return node;
+  }
+
+  if ((*tokenp)->kind == TK_INT) {
+    *tokenp = (*tokenp)->next;
+    while (true) {
+      Token *tok = *tokenp;
+      if(!consume_ident(tokenp)) {
+        error_at((*tokenp)->str, "変数名がありません");
+      }
+      LVar *lvar = find_lvar(tok);
+      if (lvar) {
+        error_at((*tokenp)->str, "その変数はすでに宣言されています");
+      } else {
+        lvar = calloc(1, sizeof(LVar));
+        lvar->next = locals;
+        lvar->name = tok->str;
+        lvar->len = tok->len;
+        if (locals) {
+          lvar->offset = locals->offset + 8;
+        } else {
+          lvar->offset = 8;
+        }
+        node->offset = lvar->offset;
+        locals = lvar;
+      }
+      if (consume(tokenp, ";")) {
+        break;
+      }
+      expect(tokenp, ",");
+    }
   }
 
   if (consume(tokenp, "{")) {
@@ -369,22 +446,10 @@ Node *primary(Token **tokenp) {
     if (lvar) {
       node->offset = lvar->offset;
     } else {
-      lvar = calloc(1, sizeof(LVar));
-      lvar->next = locals;
-      lvar->name = tok->str;
-      lvar->len = tok->len;
-      if (locals) {
-        lvar->offset = locals->offset + 8;
-      } else {
-        lvar->offset = 8;
-      }
-      node->offset = lvar->offset;
-      locals = lvar;
+      error_at(tok->str, "変数が宣言されていません");
     }
     return node;
   }
-
-
 
   // そうでなければ数値のはず
   return new_node_num(expect_number(tokenp));
