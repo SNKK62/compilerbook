@@ -11,6 +11,14 @@ char map_func_argv_register[6][4] = {
 };
 
 void gen_lval(Node *node) {
+  if (node->kind == ND_ASSIGN_DEREF) {
+    gen_lval(node->lhs);
+    printf("  pop rax\n");
+    printf("  mov rax, [rax]\n");
+    printf("  push rax\n");
+    return;
+  }
+
   if (node->kind != ND_LVAR)
     error("代入の左辺値が変数ではありません");
 
@@ -26,6 +34,8 @@ int gen_label() {
 
 void gen(Node *node) {
   switch(node->kind) {
+    case ND_LVAR_DEF:
+      return;
     case ND_NUM:
       printf("  push %d\n", node->val);
       return;

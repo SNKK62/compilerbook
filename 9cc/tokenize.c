@@ -110,7 +110,10 @@ Token *tokenize(char *p)
     }
 
     if (strncmp(p, "int", 3) == 0 && !is_alnum(p[3])) {
-      cur = new_token(TK_INT, cur, p, 3);
+      Token *tok = calloc(1, sizeof(Token));
+      tok->kind = TK_INT;
+      cur->next = tok;
+      cur = tok;
       p += 3;
       continue;
     }

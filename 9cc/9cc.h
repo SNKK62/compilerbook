@@ -7,6 +7,12 @@
 
 // tokenize.c
 
+typedef struct Type Type;
+struct Type {
+  enum { INT, PTR } ty;
+  struct Type *ptr_to; // tyがPTRの場合のみ使う
+};
+
 typedef enum
 {
   TK_RESERVED, // symbol
@@ -33,18 +39,20 @@ struct LVar {
   char *name; // 変数の名前
   int len;    // 名前の長さ
   int offset; // RBPからのオフセット
+  Type *type; // 変数の型
 };
 
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
-bool consume(Token **token, char *op);
-bool consume_ident(Token **token);
-void expect(Token **token, char *op);
-int expect_number(Token **token);
 bool at_eof(Token *token);
 Token *tokenize(char *p);
 
 // parse.c
+
+bool consume(Token **token, char *op);
+bool consume_ident(Token **token);
+void expect(Token **token, char *op);
+int expect_number(Token **token);
 
 typedef enum {
   ND_ADD, // +
@@ -57,6 +65,7 @@ typedef enum {
   ND_LE, // <=
   ND_ADDR, // &
   ND_DEREF, // *
+  ND_ASSIGN_DEREF, // 左辺のdereference
   ND_ASSIGN, // =
   ND_LVAR, // local variables
   ND_NUM, // integer
@@ -69,6 +78,7 @@ typedef enum {
   ND_FUNC, // function
   ND_FUNC_DEF,      // definition of function
   ND_FUNC_DEF_END,  // end of function definition
+  ND_LVAR_DEF, // definition of local variable
 } NodeKind;
 
 typedef struct Node Node;
@@ -79,7 +89,7 @@ struct Node {
   Node *rhs;
   int val; // kindがND_NUMの場合のみ使う
   int offset; // kindがND_LVARの場合のみ使う
-  char* funcName; // kindがND_FUNCの場合のみ使う
+  char *funcName; // kindがND_FUNCの場合のみ使う
   Node **argv; // kindがND_FUNCの場合のみ使う
   int argc; // kindがND_FUNCの場合のみ使う
 };

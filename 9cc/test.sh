@@ -94,5 +94,8 @@ assert 13 'int main() {return fibonacci(7);} int fibonacci(int n){ if(n == 1) re
 
 assert 3 'int main() {int x, y; x = 3; y = &x; return *y;}'
 
+assert 5 'int main() {int x; int *y; y = &x; *y = 5; return x;}'
+assert 10 'int main() {int x; int *y; int **z; y = &x; z = &y; **z = 5; return x + *y;}'
+
 echo OK
 

@@ -147,6 +147,8 @@ Node *expect_func_definition(Token **tokenp)
   if ((*tokenp)->kind != TK_INT) error_at((*tokenp)->str, "intの宣言をしていません");
   *tokenp = (*tokenp)->next;
 
+  locals = NULL;
+
   Token *tok = *tokenp;
   if(!consume_ident(tokenp)) error_at((*tokenp)->str, "トップレベルは関数しか書けません");
 
@@ -179,7 +181,7 @@ void program(Token **tokenp) {
 // stmt = expr ";" 
 // | "int" ident "(" (expr (, expr)*)? ")" "{"
 // | "}"
-// | "int" ident (, ident)* ";"
+// | "int" ("*")* ident (, ident)* ";"
 // | "{" stmt* "}"
 // | "return" expr ";"
 // | "if" "(" expr ")" stmt ("else" stmt)?
@@ -195,6 +197,16 @@ Node *stmt(Token **tokenp) {
 
   if ((*tokenp)->kind == TK_INT) {
     *tokenp = (*tokenp)->next;
+    Type *type = calloc(1, sizeof(Type));
+    type->ty = INT;
+
+    while (consume(tokenp, "*")) {
+      Type *ptr = calloc(1, sizeof(Type));
+      ptr->ty = PTR;
+      ptr->ptr_to = type;
+      type = ptr;
+    }
+
     while (true) {
       Token *tok = *tokenp;
       if(!consume_ident(tokenp)) {
@@ -208,6 +220,7 @@ Node *stmt(Token **tokenp) {
         lvar->next = locals;
         lvar->name = tok->str;
         lvar->len = tok->len;
+        lvar->type = type;
         if (locals) {
           lvar->offset = locals->offset + 8;
         } else {
@@ -221,6 +234,9 @@ Node *stmt(Token **tokenp) {
       }
       expect(tokenp, ",");
     }
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_LVAR_DEF;
+    return node;
   }
 
   if (consume(tokenp, "{")) {
@@ -312,8 +328,15 @@ Node *expr(Token **tokenp) {
 // assign = equality ("=" equality)?
 Node *assign(Token **tokenp) {
   Node *node = equality(tokenp);
-  if (consume(tokenp, "="))
+  if (consume(tokenp, "=")) {
+
+    Node *cur = node;
+    while (cur->kind == ND_DEREF) {
+      cur->kind = ND_ASSIGN_DEREF;
+      cur = cur->lhs;
+    }
     node = new_node(ND_ASSIGN, node, equality(tokenp));
+  }
   return node;
 }
 
