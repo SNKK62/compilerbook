@@ -25,6 +25,40 @@ void gen(Node *node) {
       printf("  mov rax, [rax]\n");
       printf("  push rax\n");
       return;
+    case ND_FUNC:
+      {
+        //int argc = sizeof(node->argv) / sizeof(int);
+        //for(int i = 0; i < argc; i++) {
+        //  printf("  push %d\n", node->argv[i]);
+        //}
+
+        // 関数呼び出しの際はRSPの値が16の倍数になっていることを前提としている関数がある
+        // なので、RSPの値が16の倍数ではない場合、調整する
+        int rsp_label_id = gen_label();
+        printf("  mov rax, rsp\n");
+        printf("  mov r10, 16\n");
+        printf("  cqo\n");
+        printf("  div r10\n");
+        printf("  cmp rdx, 0\n");
+        printf("  je .Lrsp%d\n", rsp_label_id);
+        printf("  sub rsp, 8\n");
+
+        printf(".Lrsp%d:\n", rsp_label_id);
+        // 第一引数はrdiレジスタ、、、のように決まってるみたい
+        // ひとまず、固定でセット
+        if (node->argc >= 1) {
+          printf("  mov rdi, %d\n", node->argv[0]);
+        }
+        if (node->argc >= 2) {
+          printf("  mov rsi, %d\n", node->argv[1]);
+        }
+        if (node->argc >= 3) {
+          printf("  mov rdx, %d\n", node->argv[2]);
+        }
+
+        printf("  call %s\n", node->funcName);
+        return;
+      }
     case ND_ASSIGN:
       gen_lval(node->lhs);
       gen(node->rhs);

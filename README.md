@@ -5,7 +5,7 @@ a source code I learned from 'https://www.sigbus.info/compilerbook' : the tutori
 ### How to setup
 
 ```sh
-$ docker build -t compilerbook https://www.sigbus.info/compilerbook/Dockerfile
+$ docker build ./ -t compilerbook
 ```
 
 ### Running docker image sample
@@ -17,7 +17,9 @@ $ docker run --rm compilerbook ls /
 ### test with container
 
 ```sh
-$ docker run --rm -v $PWD/9cc:/9cc -w /9cc compilerbook make test
+$ make it
+$ make 9cc
+$ make test
 ```
 
 ### run container with interactive mode

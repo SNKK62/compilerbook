@@ -2,17 +2,33 @@
 assert() {
     expected="$1"
     input="$2"
+    func="$3"
 
     ./9cc "$input" > tmp.s
-    cc -o tmp tmp.s
-    ./tmp
-    actual="$?"
 
-    if [ "$actual" = "$expected" ]; then
-      echo "$input => $actual"
+    # funcがある場合、mock用のfuncをリンクする
+    if [ -n "$3" ]; then
+      # make -f でsubdirのMakefileを指定したかったんだけど
+      # カレントディレクトリと衝突？する
+      # なので、ディレクトリを移動
+      cd ./lib/mock
+      make
+      cd ../../
+      # リンク
+      cc -o tmp tmp.s ./lib/mock/mock.o
+        ./tmp
     else
-      echo "$iput => $expected expected, but got $actual"
-      exit 1
+      cc -o tmp tmp.s
+        ./tmp
+        actual="$?"
+
+        if [ "$actual" = "$expected" ]; then
+          echo "$input => $actual"
+        else
+          echo "$iput => $expected expected, but got $actual"
+          exit 1
+    fi
+
     fi
 }
 
@@ -63,5 +79,14 @@ assert 3 'b = 0; for(; b < 3; ) b = b + 1; return b;'
 
 assert 2 'a = 1; if (a < 2) {return 2;} else {return 3;}'
 assert 2 'a = 1; if (a < 2) {} return a+1;'
+assert 1 'a = 1; if (a < 2) {if (a > 2) {return 1;} else {return a;}} else {return 3;}'
+
+assert 0 'foo();' "true"
+assert 0 'a = 1; if (a < 2) {foo();}' "true"
+assert 0 'a = 1; if (a > 2) {return 0;} else {foo();}' "true"
+
+assert 0 'bar(1, 2, 3);' "true"
+assert 0 'hoge(1, 2);' "true"
 
 echo OK
+

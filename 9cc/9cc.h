@@ -64,6 +64,7 @@ typedef enum {
   ND_WHILE, // while
   ND_FOR, // for
   ND_BLOCK, // block
+  ND_FUNC, // function
 } NodeKind;
 
 typedef struct Node Node;
@@ -72,8 +73,11 @@ struct Node {
   NodeKind kind;
   Node *lhs;
   Node *rhs;
-  int val;
+  int val; // kindがND_NUMの場合のみ使う
   int offset; // kindがND_LVARの場合のみ使う
+  char* funcName; // kindがND_FUNCの場合のみ使う
+  int *argv; // kindがND_FUNCの場合のみ使う
+  int argc; // kindがND_FUNCの場合のみ使う
 };
 
 Node **parse(Token *tok);
