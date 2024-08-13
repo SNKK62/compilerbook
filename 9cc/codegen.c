@@ -37,25 +37,20 @@ void gen(Node *node) {
       return;
     case ND_FUNC:
       {
-        //int argc = sizeof(node->argv) / sizeof(int);
-        //for(int i = 0; i < argc; i++) {
-        //  printf("  push %d\n", node->argv[i]);
-        //}
-
         // 関数呼び出しの際はRSPの値が16の倍数になっていることを前提としている関数がある
         // なので、RSPの値が16の倍数ではない場合、調整する
-        int rsp_label_id = gen_label();
-        printf("  mov rax, rsp\n");
-        printf("  mov r10, 16\n");
-        printf("  cqo\n");
-        printf("  div r10\n");
-        printf("  cmp rdx, 0\n");
-        printf("  je .Lrsp%d\n", rsp_label_id);
-        printf("  sub rsp, 8\n");
+        /* int rsp_label_id = gen_label(); */
+        /* printf("  mov rax, rsp\n"); */
+        /* printf("  mov r10, 16\n"); */
+        /* printf("  cqo\n"); */
+        /* printf("  div r10\n"); */
+        /* printf("  cmp rdx, 0\n"); */
+        /* printf("  je .Lrsp%d\n", rsp_label_id); */
+        /* printf("  sub rsp, 8\n"); */
 
          // 関数呼び出しから戻ったときに、rspが調整されているかどうかを判別するために使う
-        printf("  mov r11, 1\n");
-        printf(".Lrsp%d:\n", rsp_label_id);
+        /* printf("  mov r11, 1\n"); */
+        /* printf(".Lrsp%d:\n", rsp_label_id); */
 
         // 第一引数はrdiレジスタ、、、のように決まってるみたい
         for(int i = 0; i < node->argc; i++) {
@@ -67,12 +62,12 @@ void gen(Node *node) {
         printf("  call %s\n", node->funcName);
 
         // rspが調整されている場合、元に戻す
-        int rsp_restore_label_id = gen_label();
-        printf("  cmp r11, 0\n");
-        printf("  je .LrspRestore%d\n", rsp_restore_label_id);
-        printf("  mov r11, 0\n");
-        printf("  add rsp, 8\n");
-        printf(".LrspRestore%d:\n", rsp_restore_label_id);
+        /* int rsp_restore_label_id = gen_label(); */
+        /* printf("  cmp r11, 0\n"); */
+        /* printf("  je .LrspRestore%d\n", rsp_restore_label_id); */
+        /* printf("  mov r11, 0\n"); */
+        /* printf("  add rsp, 8\n"); */
+        /* printf(".LrspRestore%d:\n", rsp_restore_label_id); */
 
         // 関数を呼び出した結果、raxに関数の結果が残っている
         // それをスタックに残す
