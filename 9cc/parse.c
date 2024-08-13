@@ -89,7 +89,7 @@ Node *expect_func_definition(Token **tokenp)
   expect(tokenp, "(");
 
   Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_FUNC_DIF;
+  node->kind = ND_FUNC_DEF;
   node->funcName = calloc(1, tok->len);
   strncpy(node->funcName, tok->str, tok->len);
 
@@ -219,7 +219,7 @@ Node *stmt(Token **tokenp) {
 
   if(consume(tokenp, "}")) {
     Node *node = calloc(1, sizeof(Node));
-    node->kind = ND_FUNC_DIF_END;
+    node->kind = ND_FUNC_DEF_END;
     is_top_level = true;
     return node;
   }

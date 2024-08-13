@@ -64,8 +64,8 @@ typedef enum {
   ND_FOR, // for
   ND_BLOCK, // block
   ND_FUNC, // function
-  ND_FUNC_DIF,      // definition of function
-  ND_FUNC_DIF_END,  // end of function definition
+  ND_FUNC_DEF,      // definition of function
+  ND_FUNC_DEF_END,  // end of function definition
 } NodeKind;
 
 typedef struct Node Node;

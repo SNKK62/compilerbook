@@ -43,6 +43,9 @@ void gen(Node *node) {
         printf("  je .Lrsp%d\n", rsp_label_id);
         printf("  sub rsp, 8\n");
 
+         // 関数呼び出しから戻ったときに、rspが調整されているかどうかを判別するために使う
+        printf("  mov r11, 1\n");
+
         printf(".Lrsp%d:\n", rsp_label_id);
         // 第一引数はrdiレジスタ、、、のように決まってるみたい
         // ひとまず、固定でセット
@@ -57,9 +60,22 @@ void gen(Node *node) {
         }
 
         printf("  call %s\n", node->funcName);
+
+        // rspが調整されている場合、元に戻す
+        int rsp_restore_label_id = gen_label();
+        printf("  cmp r11, 0\n");
+        printf("  je .LrspRestore%d\n", rsp_restore_label_id);
+        printf("  mov r11, 0\n");
+        printf("  add rsp, 8\n");
+        printf(".LrspRestore%d:\n", rsp_restore_label_id);
+
+        // 関数を呼び出した結果、raxに関数の結果が残っている
+        // それをスタックに残す
+        printf("  push rax\n");
+
         return;
       }
-    case ND_FUNC_DIF:
+    case ND_FUNC_DEF:
       {
         printf("%s:\n", node->funcName);
 
@@ -71,7 +87,7 @@ void gen(Node *node) {
 
         return;
       }
-    case ND_FUNC_DIF_END:
+    case ND_FUNC_DEF_END:
       {
         // ここのアセンブリが実行されるパターンは、関数でreturnしていないとき
         // returnしていないときはNULLを返したほうがいいんだろうけど、
