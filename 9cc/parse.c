@@ -272,13 +272,13 @@ Node *stmt(Token **tokenp) {
         lvar->len = tok->len;
         lvar->type = type;
         if (locals) {
-          // TODO: スタック上に配列の要素分領域を確保する必要があるのか？
-          /* if (locals->type->ty == ARRAY) { */
-          /*   lvar->offset = locals->offset + locals->type->ptr_to->size * locals->type->array_size; */
-          /* } else { */
-          /*   lvar->offset = locals->offset + 8; */
-          /* } */
-          lvar->offset = locals->offset + 8;
+          /* TODO: スタック上に配列の要素分領域を確保する必要があるのか？ */
+          if (locals->type->ty == ARRAY) {
+            lvar->offset = locals->offset + locals->type->ptr_to->size * locals->type->array_size;
+          } else {
+            lvar->offset = locals->offset + 8;
+          }
+          /* lvar->offset = locals->offset + 8; */
         } else {
           lvar->offset = 8;
         }
