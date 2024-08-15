@@ -7,12 +7,6 @@
 
 // tokenize.c
 
-typedef struct Type Type;
-struct Type {
-  enum { INT, PTR } ty;
-  struct Type *ptr_to; // tyがPTRの場合のみ使う
-};
-
 typedef enum
 {
   TK_RESERVED, // symbol
@@ -32,6 +26,17 @@ struct Token
   int len;
 };
 
+typedef enum TypeKind {
+  INT,
+  PTR,
+} TypeKind;
+typedef struct Type Type;
+struct Type {
+  TypeKind ty;
+  struct Type *ptr_to; // tyがPTRの場合のみ使う
+  int size;
+};
+
 typedef struct LVar LVar;
 // ローカル変数の型
 struct LVar {
@@ -49,6 +54,7 @@ Token *tokenize(char *p);
 
 // parse.c
 
+Type *new_type(TypeKind ty);
 bool consume(Token **token, char *op);
 bool consume_ident(Token **token);
 void expect(Token **token, char *op);
@@ -89,6 +95,7 @@ struct Node {
   Node *rhs;
   int val; // kindがND_NUMの場合のみ使う
   int offset; // kindがND_LVARの場合のみ使う
+  Type *type; // kindがND_LVARの場合のみ使う
   char *funcName; // kindがND_FUNCの場合のみ使う
   Node **argv; // kindがND_FUNCの場合のみ使う
   int argc; // kindがND_FUNCの場合のみ使う

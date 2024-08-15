@@ -97,5 +97,8 @@ assert 3 'int main() {int x, y; x = 3; y = &x; return *y;}'
 assert 5 'int main() {int x; int *y; y = &x; *y = 5; return x;}'
 assert 10 'int main() {int x; int *y; int **z; y = &x; z = &y; **z = 5; return x + *y;}'
 
+assert 4 'int main() {int x; int *y; int *z; y = &x; z = y; z = z + 1; return z-y;}'
+assert 8 'int main() {int x; int *y; int **z; int **zz; y = &x; z = &y; zz = z + 1; return zz-z;}'
+
 echo OK
 

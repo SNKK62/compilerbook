@@ -11,6 +11,17 @@ Node *mul(Token **tokenp);
 Node *unary(Token **tokenp);
 Node *primary(Token **tokenp);
 
+Type *new_type(TypeKind ty) {
+  Type *type = calloc(1, sizeof(Type));
+  type->ty = ty;
+  if (ty == PTR) {
+    type->size = 8;
+  } else if (ty == INT) {
+    type->size = 4;
+  }
+  return type;
+}
+
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
@@ -107,6 +118,12 @@ void parse_def_argv(Token **tokenp, Node *node) {
       if ((*tokenp)->kind != TK_INT) error_at((*tokenp)->str, "intの宣言をしていません");
       *tokenp = (*tokenp)->next;
 
+      Type *type = new_type(INT);
+      while (consume(tokenp, "*")) {
+        Type *ptr = new_type(PTR);
+        ptr->ptr_to = type;
+        type = ptr;
+      }
       Node *arg = calloc(1, sizeof(Node));
       arg->kind = ND_LVAR;
 
@@ -114,22 +131,22 @@ void parse_def_argv(Token **tokenp, Node *node) {
       if(!consume_ident(tokenp)) {
         error_at((*tokenp)->str, "変数名がありません");
       }
-      LVar *lvar = find_lvar(token);
-      if (lvar) {
-        arg->offset = lvar->offset;
+
+      LVar *lvar = calloc(1, sizeof(LVar));
+      lvar->next = locals;
+      lvar->name = token->str;
+      lvar->len = token->len;
+      if (locals) {
+        lvar->offset = locals->offset + 8;
       } else {
-        lvar = calloc(1, sizeof(LVar));
-        lvar->next = locals;
-        lvar->name = token->str;
-        lvar->len = token->len;
-        if (locals) {
-          lvar->offset = locals->offset + 8;
-        } else {
-          lvar->offset = 8;
-        }
-        arg->offset = lvar->offset;
-        locals = lvar;
+        lvar->offset = 8;
       }
+      lvar->type = type;
+
+      arg->offset = lvar->offset;
+      arg->type = lvar->type;
+      locals = lvar;
+
       node->argv[i] = arg;
 
       i++;
@@ -197,12 +214,10 @@ Node *stmt(Token **tokenp) {
 
   if ((*tokenp)->kind == TK_INT) {
     *tokenp = (*tokenp)->next;
-    Type *type = calloc(1, sizeof(Type));
-    type->ty = INT;
+    Type *type = new_type(INT);
 
     while (consume(tokenp, "*")) {
-      Type *ptr = calloc(1, sizeof(Type));
-      ptr->ty = PTR;
+      Type *ptr = new_type(PTR);
       ptr->ptr_to = type;
       type = ptr;
     }
@@ -227,6 +242,8 @@ Node *stmt(Token **tokenp) {
           lvar->offset = 8;
         }
         node->offset = lvar->offset;
+        node->type = lvar->type;
+
         locals = lvar;
       }
       if (consume(tokenp, ";")) {
@@ -386,6 +403,7 @@ Node *relational(Token **tokenp) {
 // add = mul ("+" mul | "-" mul)*
 Node *add(Token **tokenp) {
   Node *node = mul(tokenp);
+  Node *rhs;
 
   for (;;) {
     if (consume(tokenp, "+")) {
@@ -454,7 +472,7 @@ Node *primary(Token **tokenp) {
       Node *node = calloc(1, sizeof(Node));
       node->kind = ND_FUNC;
       node->funcName = calloc(1, tok->len);
-      strncpy(node->funcName, tok->str, tok->len);;
+      strncpy(node->funcName, tok->str, tok->len);
 
       parse_argv(tokenp, node);
 
@@ -468,6 +486,7 @@ Node *primary(Token **tokenp) {
     LVar *lvar = find_lvar(tok);
     if (lvar) {
       node->offset = lvar->offset;
+      node->type = lvar->type;
     } else {
       error_at(tok->str, "変数が宣言されていません");
     }

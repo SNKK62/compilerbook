@@ -216,6 +216,52 @@ void gen(Node *node) {
       printf("  mov rax, [rax]\n");
       printf("  push rax\n");
       return;
+    case ND_ADD:
+      gen(node->lhs);
+      if ((node->lhs->kind == ND_LVAR && node->lhs->type->ty == PTR) || (node->lhs->kind == ND_DEREF)) {
+        Node *target = node->lhs;
+        int depth = 0;
+        while(target->kind != ND_LVAR) {
+          depth++;
+          target = target->lhs;
+        }
+
+        Type *type = target->type;
+        for (int i=0; i<depth; i++) {
+          type = type->ptr_to;
+        }
+
+        if (type->ty != PTR) {
+          gen(node->rhs);
+          printf("  pop rdi\n");
+          printf("  pop rax\n");
+
+          printf("  add rax, rdi\n");
+          printf("  push rax\n");
+          return;
+        }
+        type = type->ptr_to;
+
+        gen(node->rhs);
+        printf("  push %d\n", type->size);
+        printf("  pop rdi\n");
+        printf("  pop rax\n");
+        printf("  imul rax, rdi\n");
+        printf("  push rax\n");
+
+        printf("  pop rdi\n");
+        printf("  pop rax\n");
+        printf("  add rax, rdi\n");
+        printf("  push rax\n");
+        return;
+      }
+      gen(node->rhs);
+      printf("  pop rdi\n");
+      printf("  pop rax\n");
+
+      printf("  add rax, rdi\n");
+      printf("  push rax\n");
+      return;
   }
 
   gen(node->lhs);
@@ -225,9 +271,6 @@ void gen(Node *node) {
   printf("  pop rax\n");
 
   switch (node->kind) {
-    case ND_ADD:
-      printf("  add rax, rdi\n");
-      break;
     case ND_SUB:
       printf("  sub rax, rdi\n");
       break;
