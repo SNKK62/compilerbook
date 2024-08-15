@@ -36,6 +36,7 @@ struct Type {
   TypeKind ty;
   struct Type *ptr_to; // tyがPTRの場合のみ使う
   int size;
+  int depth;
 };
 
 typedef struct LVar LVar;
@@ -55,7 +56,7 @@ Token *tokenize(char *p);
 
 // parse.c
 
-Type *new_type(TypeKind ty);
+Type *new_type(TypeKind ty, Type *ptr_to);
 bool consume(Token **token, char *op);
 bool consume_ident(Token **token);
 void expect(Token **token, char *op);
@@ -96,7 +97,7 @@ struct Node {
   Node *rhs;
   int val; // kindがND_NUMの場合のみ使う
   int offset; // kindがND_LVARの場合のみ使う
-  Type *type; // kindがND_LVARの場合のみ使う
+  Type *type; // kindがND_LVAR, ND_DEREF, ND_ADD, ND_SUBの場合のみ使う
   char *funcName; // kindがND_FUNCの場合のみ使う
   Node **argv; // kindがND_FUNCの場合のみ使う
   int argc; // kindがND_FUNCの場合のみ使う

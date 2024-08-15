@@ -11,13 +11,16 @@ Node *mul(Token **tokenp);
 Node *unary(Token **tokenp);
 Node *primary(Token **tokenp);
 
-Type *new_type(TypeKind ty) {
+Type *new_type(TypeKind ty, Type *ptr_to) {
   Type *type = calloc(1, sizeof(Type));
   type->ty = ty;
   if (ty == PTR) {
     type->size = 8;
+    type->ptr_to = ptr_to;
+    type->depth = ptr_to->depth + 1;
   } else if (ty == INT) {
     type->size = 4;
+    type->depth = 0;
   }
   return type;
 }
@@ -118,10 +121,9 @@ void parse_def_argv(Token **tokenp, Node *node) {
       if ((*tokenp)->kind != TK_INT) error_at((*tokenp)->str, "intの宣言をしていません");
       *tokenp = (*tokenp)->next;
 
-      Type *type = new_type(INT);
+      Type *type = new_type(INT, NULL);
       while (consume(tokenp, "*")) {
-        Type *ptr = new_type(PTR);
-        ptr->ptr_to = type;
+        Type *ptr = new_type(PTR, type);
         type = ptr;
       }
       Node *arg = calloc(1, sizeof(Node));
@@ -184,6 +186,17 @@ Node *expect_func_definition(Token **tokenp)
   return node;
 }
 
+Type *get_result_type(Node *lhs, Node *rhs) {
+  if (lhs && lhs->type && rhs && rhs->type && lhs->type->ty == PTR && rhs->type->ty == PTR) {
+    error("ポインタ同士の演算はできません");
+  } else if (lhs && lhs->type && lhs->type->ty == PTR) {
+    return lhs->type;
+  } else if (rhs && rhs->type && rhs->type->ty == PTR) {
+    return rhs->type;
+  }
+  return new_type(INT, NULL);
+}
+
 Node *code[100];
 
 // program = stmt*
@@ -214,12 +227,10 @@ Node *stmt(Token **tokenp) {
 
   if ((*tokenp)->kind == TK_INT) {
     *tokenp = (*tokenp)->next;
-    Type *type = new_type(INT);
+    Type *type = new_type(INT, NULL);
 
     while (consume(tokenp, "*")) {
-      Type *ptr = new_type(PTR);
-      ptr->ptr_to = type;
-      type = ptr;
+      type = new_type(PTR, type);
     }
 
     while (true) {
@@ -407,11 +418,17 @@ Node *add(Token **tokenp) {
 
   for (;;) {
     if (consume(tokenp, "+")) {
-      node = new_node(ND_ADD, node, mul(tokenp));
+      Node *rhs = mul(tokenp);
+      Type *type = get_result_type(node, rhs);
+      node = new_node(ND_ADD, node, rhs);
+      node->type = type;
       continue;
     }
     if (consume(tokenp, "-")) {
-      node = new_node(ND_SUB, node, mul(tokenp));
+      Node *rhs = mul(tokenp);
+      Type *type = get_result_type(node, rhs);
+      node = new_node(ND_SUB, node, rhs);
+      node->type = type;
       continue;
     }
 
@@ -447,41 +464,24 @@ Node *unary(Token **tokenp) {
     return unary(tokenp);
   }
   if (consume(tokenp, "-")) {
-    return new_node(ND_SUB, new_node_num(0), unary(tokenp));
+    Node *rhs = unary(tokenp);
+    Node *node = new_node(ND_SUB, new_node_num(0), rhs);
+    node->type = get_result_type(NULL, rhs);
+    return node;
   }
   if (consume(tokenp, "&")) {
     return new_node(ND_ADDR, unary(tokenp), NULL);
   }
   if (consume(tokenp, "*")) {
-    return new_node(ND_DEREF, unary(tokenp), NULL);
+    Node* node = new_node(ND_DEREF, unary(tokenp), NULL);
+    node->type = node->lhs->type->ptr_to;
+    return node;
   }
   if (consume(tokenp, "sizeof")) {
     Node *target = unary(tokenp);
-    int depth = 0;
-    while (target->kind != ND_LVAR) {
-      if (target->kind == ND_DEREF) {
-        depth++;
-      }
-      if (target->lhs) {
-        target = target->lhs;
-      } else {
-        break;
-      }
-    }
-    Type *type;
-    if (target->kind == ND_LVAR) {
-      type = target->type;
-      for (int i = 0; i < depth; i++) {
-        type = type->ptr_to;
-      }
-    } else {
-      // TODO: 最左辺が数字の場合にINTにしているが，違うこともあるので要修正
-      type = new_type(INT);
-    }
-
     Node *node = calloc(1, sizeof(Node));
     node->kind = ND_NUM;
-    node->val = type->size;
+    node->val = get_result_type(target, NULL)->size;
 
     return node;
   }

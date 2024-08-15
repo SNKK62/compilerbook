@@ -217,51 +217,45 @@ void gen(Node *node) {
       printf("  push rax\n");
       return;
     case ND_ADD:
-      gen(node->lhs);
-      if ((node->lhs->kind == ND_LVAR && node->lhs->type->ty == PTR) || (node->lhs->kind == ND_DEREF)) {
-        Node *target = node->lhs;
-        int depth = 0;
-        while(target->kind != ND_LVAR) {
-          depth++;
-          target = target->lhs;
-        }
-
-        Type *type = target->type;
-        for (int i=0; i<depth; i++) {
-          type = type->ptr_to;
-        }
-
-        if (type->ty != PTR) {
-          gen(node->rhs);
+      {
+        gen(node->lhs);
+        gen(node->rhs);
+        Type *type = node->type;
+        if (type->ty == PTR) {
+          printf("  push %d\n", type->ptr_to->size);
           printf("  pop rdi\n");
           printf("  pop rax\n");
-
-          printf("  add rax, rdi\n");
+          printf("  imul rax, rdi\n");
           printf("  push rax\n");
-          return;
         }
-        type = type->ptr_to;
-
-        gen(node->rhs);
-        printf("  push %d\n", type->size);
-        printf("  pop rdi\n");
-        printf("  pop rax\n");
-        printf("  imul rax, rdi\n");
-        printf("  push rax\n");
 
         printf("  pop rdi\n");
         printf("  pop rax\n");
+
         printf("  add rax, rdi\n");
         printf("  push rax\n");
         return;
       }
-      gen(node->rhs);
-      printf("  pop rdi\n");
-      printf("  pop rax\n");
+    case ND_SUB:
+      {
+        gen(node->lhs);
+        gen(node->rhs);
+        Type *type = node->type;
+        if (type->ty == PTR) {
+          printf("  push %d\n", type->ptr_to->size);
+          printf("  pop rdi\n");
+          printf("  pop rax\n");
+          printf("  imul rax, rdi\n");
+          printf("  push rax\n");
+        }
 
-      printf("  add rax, rdi\n");
-      printf("  push rax\n");
-      return;
+        printf("  pop rdi\n");
+        printf("  pop rax\n");
+
+        printf("  sub rax, rdi\n");
+        printf("  push rax\n");
+        return;
+      }
   }
 
   gen(node->lhs);
@@ -271,9 +265,6 @@ void gen(Node *node) {
   printf("  pop rax\n");
 
   switch (node->kind) {
-    case ND_SUB:
-      printf("  sub rax, rdi\n");
-      break;
     case ND_MUL:
       printf("  imul rax, rdi\n");
       break;
