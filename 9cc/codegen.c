@@ -233,7 +233,8 @@ void gen(Node *node) {
         gen(node->rhs);
         Type *type = node->type;
         if (type->ty == PTR || type->ty == ARRAY) {
-          printf("  push %d\n", type->ptr_to->size);
+          /* printf("  push %d\n", type->ptr_to->size); */
+          printf("  push %d\n", 8);
           printf("  pop rdi\n");
           printf("  pop rax\n");
           printf("  imul rax, rdi\n");
