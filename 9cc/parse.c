@@ -18,6 +18,9 @@ Type *new_type(TypeKind ty, Type *ptr_to) {
     type->size = 8;
     type->ptr_to = ptr_to;
     type->depth = ptr_to->depth + 1;
+  } else if (ty == ARRAY) {
+    type->ptr_to = ptr_to;
+    type->depth = ptr_to->depth + 1;
   } else if (ty == INT) {
     type->size = 4;
     type->depth = 0;
@@ -187,11 +190,25 @@ Node *expect_func_definition(Token **tokenp)
 }
 
 Type *get_result_type(Node *lhs, Node *rhs) {
-  if (lhs && lhs->type && rhs && rhs->type && lhs->type->ty == PTR && rhs->type->ty == PTR) {
+  if (
+    lhs && rhs
+      && lhs->type
+      && rhs->type
+      && (lhs->type->ty == PTR || lhs->type->ty == ARRAY)
+      && (rhs->type->ty == PTR || rhs->type->ty == ARRAY)
+  ) {
     error("ポインタ同士の演算はできません");
-  } else if (lhs && lhs->type && lhs->type->ty == PTR) {
+  } else if (
+    lhs
+      && lhs->type
+      && (lhs->type->ty == PTR || lhs->type->ty == ARRAY)
+  ) {
     return lhs->type;
-  } else if (rhs && rhs->type && rhs->type->ty == PTR) {
+  } else if (
+    rhs
+      && rhs->type
+      && (rhs->type->ty == PTR || rhs->type->ty == ARRAY)
+  ) {
     return rhs->type;
   }
   return new_type(INT, NULL);
@@ -212,6 +229,7 @@ void program(Token **tokenp) {
 // | "int" ident "(" (expr (, expr)*)? ")" "{"
 // | "}"
 // | "int" ("*")* ident (, ident)* ";"
+// | "int" ("*")* ident ("[" num "]");"
 // | "{" stmt* "}"
 // | "return" expr ";"
 // | "if" "(" expr ")" stmt ("else" stmt)?
@@ -227,13 +245,13 @@ Node *stmt(Token **tokenp) {
 
   if ((*tokenp)->kind == TK_INT) {
     *tokenp = (*tokenp)->next;
-    Type *type = new_type(INT, NULL);
-
-    while (consume(tokenp, "*")) {
-      type = new_type(PTR, type);
-    }
 
     while (true) {
+      Type *type = new_type(INT, NULL);
+      while (consume(tokenp, "*")) {
+        type = new_type(PTR, type);
+      }
+
       Token *tok = *tokenp;
       if(!consume_ident(tokenp)) {
         error_at((*tokenp)->str, "変数名がありません");
@@ -242,12 +260,24 @@ Node *stmt(Token **tokenp) {
       if (lvar) {
         error_at((*tokenp)->str, "その変数はすでに宣言されています");
       } else {
+        if (consume(tokenp, "[")) {
+          int array_size = expect_number(tokenp);
+          expect(tokenp, "]");
+          type = new_type(ARRAY, type);
+          type->array_size = array_size;
+        }
         lvar = calloc(1, sizeof(LVar));
         lvar->next = locals;
         lvar->name = tok->str;
         lvar->len = tok->len;
         lvar->type = type;
         if (locals) {
+          // TODO: スタック上に配列の要素分領域を確保する必要があるのか？
+          /* if (locals->type->ty == ARRAY) { */
+          /*   lvar->offset = locals->offset + locals->type->ptr_to->size * locals->type->array_size; */
+          /* } else { */
+          /*   lvar->offset = locals->offset + 8; */
+          /* } */
           lvar->offset = locals->offset + 8;
         } else {
           lvar->offset = 8;

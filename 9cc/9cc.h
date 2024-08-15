@@ -30,11 +30,13 @@ struct Token
 typedef enum TypeKind {
   INT,
   PTR,
+  ARRAY,
 } TypeKind;
 typedef struct Type Type;
 struct Type {
   TypeKind ty;
   struct Type *ptr_to; // tyがPTRの場合のみ使う
+  int array_size; // tyがARRAYの場合のみ使う
   int size;
   int depth;
 };

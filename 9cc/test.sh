@@ -94,18 +94,23 @@ assert 13 'int main() {return fibonacci(7);} int fibonacci(int n){ if(n == 1) re
 
 assert 3 'int main() {int x, y; x = 3; y = &x; return *y;}'
 
-assert 5 'int main() {int x; int *y; y = &x; *y = 5; return x;}'
-assert 10 'int main() {int x; int *y; int **z; y = &x; z = &y; **z = 5; return x + *y;}'
+assert 5 'int main() {int x, *y; y = &x; *y = 5; return x;}'
+assert 10 'int main() {int x, *y, **z; y = &x; z = &y; **z = 5; return x + *y;}'
 
 assert 4 'int main() {sizeof 1;}'
 assert 4 'int main() {sizeof(1);}'
+assert 4 'int main() {int x; sizeof x;}'
 assert 4 'int main() {int x; sizeof(x);}'
 assert 4 'int main() {int x; sizeof(x+3);}'
 assert 8 'int main() {int *x; sizeof(x);}'
 assert 8 'int main() {int *x; sizeof(-x);}'
 assert 8 'int main() {int *x; sizeof(++x);}'
-assert 8 'int main() {int *x; int y; y = 2; x = &y; sizeof(x+3);}'
+assert 8 'int main() {int *x, y; y = 2; x = &y; sizeof(x+3);}'
 assert 4 'int main() {int *x; int y; y = 2; x = &y; sizeof(*x);}'
+
+assert 0 'int main() {int x[5]; return 0;}'
+
+assert 3 'int main() {int a[2]; *a = 1; *(a + 1) = 2; int *p; p = a; return *p + *(p + 1);}'
 
 echo OK
 

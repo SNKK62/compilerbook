@@ -11,14 +11,6 @@ char map_func_argv_register[6][4] = {
 };
 
 void gen_lval(Node *node) {
-  if (node->kind == ND_ASSIGN_DEREF) {
-    gen_lval(node->lhs);
-    printf("  pop rax\n");
-    printf("  mov rax, [rax]\n");
-    printf("  push rax\n");
-    return;
-  }
-
   if (node->kind != ND_LVAR)
     error("代入の左辺値が変数ではありません");
 
@@ -35,6 +27,21 @@ int gen_label() {
 void gen(Node *node) {
   switch(node->kind) {
     case ND_LVAR_DEF:
+      return;
+    case ND_ASSIGN_DEREF:
+      if (node->lhs->kind != ND_LVAR && node->lhs->kind != ND_ASSIGN_DEREF) {
+        gen(node->lhs);
+        return;
+      }
+      if (node->lhs->kind == ND_LVAR) {
+        gen_lval(node->lhs);
+      }
+      if (node->lhs->kind == ND_ASSIGN_DEREF) {
+        gen(node->lhs);
+      }
+      printf("  pop rax\n");
+      printf("  mov rax, [rax]\n");
+      printf("  push rax\n");
       return;
     case ND_NUM:
       printf("  push %d\n", node->val);
@@ -119,7 +126,11 @@ void gen(Node *node) {
         return;
       }
     case ND_ASSIGN:
-      gen_lval(node->lhs);
+      if (node->lhs->kind == ND_ASSIGN_DEREF) {
+        gen(node->lhs);
+      } else {
+        gen_lval(node->lhs);
+      }
       gen(node->rhs);
 
       printf("  pop rdi\n");
@@ -221,7 +232,7 @@ void gen(Node *node) {
         gen(node->lhs);
         gen(node->rhs);
         Type *type = node->type;
-        if (type->ty == PTR) {
+        if (type->ty == PTR || type->ty == ARRAY) {
           printf("  push %d\n", type->ptr_to->size);
           printf("  pop rdi\n");
           printf("  pop rax\n");
@@ -241,7 +252,7 @@ void gen(Node *node) {
         gen(node->lhs);
         gen(node->rhs);
         Type *type = node->type;
-        if (type->ty == PTR) {
+        if (type->ty == PTR || type->ty == ARRAY) {
           printf("  push %d\n", type->ptr_to->size);
           printf("  pop rdi\n");
           printf("  pop rax\n");
