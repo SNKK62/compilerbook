@@ -437,7 +437,8 @@ Node *mul(Token **tokenp) {
   }
 }
 
-// unary = ("+" | "-")? unary 
+// unary = "sizeof" unary
+// | ("+" | "-")? unary 
 // | "*" unary
 // | "&" unary
 // | primary
@@ -453,6 +454,36 @@ Node *unary(Token **tokenp) {
   }
   if (consume(tokenp, "*")) {
     return new_node(ND_DEREF, unary(tokenp), NULL);
+  }
+  if (consume(tokenp, "sizeof")) {
+    Node *target = unary(tokenp);
+    int depth = 0;
+    while (target->kind != ND_LVAR) {
+      if (target->kind == ND_DEREF) {
+        depth++;
+      }
+      if (target->lhs) {
+        target = target->lhs;
+      } else {
+        break;
+      }
+    }
+    Type *type;
+    if (target->kind == ND_LVAR) {
+      type = target->type;
+      for (int i = 0; i < depth; i++) {
+        type = type->ptr_to;
+      }
+    } else {
+      // TODO: 最左辺が数字の場合にINTにしているが，違うこともあるので要修正
+      type = new_type(INT);
+    }
+
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_NUM;
+    node->val = type->size;
+
+    return node;
   }
   return primary(tokenp);
 }
