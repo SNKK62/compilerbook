@@ -518,7 +518,7 @@ Node *unary(Token **tokenp) {
   return primary(tokenp);
 }
 
-// primary = num | ident ("(" (exp (, expr)*)? ")")? | "(" expr ")" 
+// primary = num | ident ("(" (exp (, expr)*)? ")")? | "(" expr ")" | ident[expr]
 Node *primary(Token **tokenp) {
   // 次のトークンが"("なら，"(" expr ")"のはず
   if (consume(tokenp, "(")) {
@@ -540,7 +540,6 @@ Node *primary(Token **tokenp) {
       return node;
     }
 
-
     Node *node = calloc(1, sizeof(Node));
     node->kind = ND_LVAR;
 
@@ -551,6 +550,20 @@ Node *primary(Token **tokenp) {
     } else {
       error_at(tok->str, "変数が宣言されていません");
     }
+
+    // 配列の場合
+    if (consume(tokenp, "[")) {
+      Node *deref = calloc(1, sizeof(Node));
+      deref->kind = ND_DEREF;
+      Node *rhs = expr(tokenp);
+      Node *addition = new_node(ND_ADD, node, rhs);
+      addition->type = get_result_type(node, rhs);
+      deref->lhs = addition;
+      deref->type = addition->type->ptr_to;
+      expect(tokenp, "]");
+      node = deref;
+    }
+
     return node;
   }
 
