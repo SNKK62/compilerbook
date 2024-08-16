@@ -56,5 +56,5 @@ jobs:
         run: |
           # Change owner of workspace to ubuntu user
           sudo chown -R 1000:1000 ${{ github.workspace }}
-          chmod 666 9cc/*.c
+          sudo chmod 666 9cc/*.c
           docker run --rm -v ${{ github.workspace }}/9cc:/9cc -w /9cc ${{ steps.image_tag.outputs.TAG }} make && make test
