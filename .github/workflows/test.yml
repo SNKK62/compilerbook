@@ -21,7 +21,7 @@ jobs:
           # Get Dockerfile hash for image cache
           IMAGE_HASH="${{ hashFiles('./Dockerfile') }}"
           # Create image tag
-          VARIANT="$(TZ=UTC-9 date +%Y%m%d)_${IMAGE_HASH:0:7}"
+          VARIANT="${IMAGE_HASH:0:7}"
           IMAGE_NAME="compilerbook_${{ env.ARCH }}"
           TAG="${IMAGE_NAME}:${VARIANT}"
           # Cache dir setting
@@ -56,4 +56,4 @@ jobs:
         run: |
           # Change owner of workspace to ubuntu user
           sudo chown -R 1000:1000 ${{ github.workspace }}
-          docker run --rm -v ${{ github.workspace }}:/9cc -w /9cc${{ steps.image_tag.outputs.TAG }} make && make test
+          docker run --rm -v ${{ github.workspace }}/9cc:/9cc -w /9cc ${{ steps.image_tag.outputs.TAG }} make && make test
