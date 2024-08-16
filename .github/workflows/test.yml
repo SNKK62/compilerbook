@@ -58,4 +58,4 @@ jobs:
           sudo chown -R 1000:1000 ${{ github.workspace }}
           sudo chmod 666 9cc/*.c
           ls -l 9cc
-          docker run --rm -v ${{ github.workspace }}/9cc:/9cc -w /9cc ${{ steps.image_tag.outputs.TAG }} make && make test
+          docker run --rm -v ${{ github.workspace }}/9cc:/9cc -w /9cc ${{ steps.image_tag.outputs.TAG }} make test
