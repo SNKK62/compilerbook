@@ -116,8 +116,8 @@ void gen(Node *node) {
         // プロローグ処理
         printf("  push rbp\n");
         printf("  mov rbp, rsp\n");
-        // 変数26個分の領域を確保する
-        printf("  sub rsp, 208\n");
+        // ローカル変数の数分の領域を確保する
+        printf("  sub rsp, %d\n", node->stack_size);
 
         // 第一引数はrdiレジスタ、、、のように決まってるみたい
         for(int i = 0; i < node->argc; i++) {

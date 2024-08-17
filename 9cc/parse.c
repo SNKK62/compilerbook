@@ -92,6 +92,7 @@ LVar *locals = NULL;
 GVar *globals = NULL;
 GVar *globals_head = NULL;
 int gvar_id = 0;
+Node *current_func = NULL;
 
 // ローカル変数を名前で検索する。見つからなかった場合はNULLを返す。
 LVar *find_lvar(Token *tok) {
@@ -143,6 +144,8 @@ void parse_def_argv(Token **tokenp, Node *node) {
       }
       Node *arg = calloc(1, sizeof(Node));
       arg->kind = ND_LVAR;
+
+      current_func->stack_size += 8;
 
       Token *token = *tokenp;
       if(!consume_ident(tokenp)) {
@@ -197,7 +200,11 @@ Node *expect_func_or_var_definition(Token **tokenp)
     node->kind = ND_FUNC_DEF;
     node->funcName = calloc(1, tok->len);
     node->type = type;
+    node->stack_size = 0;
     strncpy(node->funcName, tok->str, tok->len);
+
+    // 関数に必要なlocal varsの数を取得するための変数
+    current_func = node;
 
     // 引数をパース )も読み飛ばしてる
     parse_def_argv(tokenp, node);
@@ -380,6 +387,8 @@ Node *stmt(Token **tokenp) {
         node->type = lvar->type;
 
         locals = lvar;
+
+        current_func->stack_size += 8;
       }
       if (consume(tokenp, ";")) {
         break;

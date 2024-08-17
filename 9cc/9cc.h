@@ -122,6 +122,7 @@ struct Node {
   int len; // kindがND_GVARの場合のみ使う
   Node **argv; // kindがND_FUNCの場合のみ使う
   int argc; // kindがND_FUNCの場合のみ使う
+  int stack_size; // kindがND_FUNCの場合のみ使う
 };
 
 Node **parse(Token *tok);

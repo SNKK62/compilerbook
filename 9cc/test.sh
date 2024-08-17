@@ -117,6 +117,7 @@ assert 5 'int main() {int a[2]; a[0] = 3; a[1] = 2; return a[0] + a[1];}'
 assert 5 'int a; int main() {a = 5; return a;}'
 assert 3 'int a, b; int main() {a = 1; b = 2; return a + b;}'
 assert 3 'int a[2]; int main() {a[0] = 1; a[1] = 2; return a[0] + a[1];}'
+assert 2 'int a; int main(){a = 1; int a; a = 2; return a;}'
 
 echo OK
 
