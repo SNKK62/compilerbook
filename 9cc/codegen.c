@@ -19,6 +19,11 @@ void gen_lval(Node *node) {
   printf("  push rax\n");
 }
 
+void gen_gval(GVar *var) {
+  printf("  lea rax, %s\n", var->label);
+  printf("  push rax\n");
+}
+
 int gen_label() {
   int static id = 0;
   return id++;
@@ -27,6 +32,7 @@ int gen_label() {
 void gen(Node *node) {
   switch(node->kind) {
     case ND_LVAR_DEF:
+    case ND_GVAR_DEF:
       return;
     case ND_ASSIGN_DEREF:
       if (node->lhs->kind != ND_LVAR && node->lhs->kind != ND_ASSIGN_DEREF) {
@@ -35,6 +41,8 @@ void gen(Node *node) {
       }
       if (node->lhs->kind == ND_LVAR) {
         gen_lval(node->lhs);
+        // TODO: refine condition
+        if (node->lhs->type->ty == ARRAY) return;
       }
       if (node->lhs->kind == ND_ASSIGN_DEREF) {
         gen(node->lhs);
@@ -48,6 +56,14 @@ void gen(Node *node) {
       return;
     case ND_LVAR:
       gen_lval(node);
+      if (node->type->ty == ARRAY) return;
+      printf("  pop rax\n");
+      printf("  mov rax, [rax]\n");
+      printf("  push rax\n");
+      return;
+    case ND_GVAR:
+      GVar *var = find_gvar(node->name, node->len);
+      gen_gval(var);
       printf("  pop rax\n");
       printf("  mov rax, [rax]\n");
       printf("  push rax\n");
@@ -128,6 +144,9 @@ void gen(Node *node) {
     case ND_ASSIGN:
       if (node->lhs->kind == ND_ASSIGN_DEREF) {
         gen(node->lhs);
+      } else if (node->lhs->kind == ND_GVAR) {
+        GVar *var = find_gvar(node->lhs->name, node->lhs->len);
+        gen_gval(var);
       } else {
         gen_lval(node->lhs);
       }

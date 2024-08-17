@@ -18,7 +18,7 @@ assert() {
       cc -o tmp tmp.s ./lib/mock/mock.o
         ./tmp
     else
-      cc -o tmp tmp.s
+      cc -static -o tmp tmp.s
         ./tmp
         actual="$?"
 
@@ -92,7 +92,7 @@ assert 4 'int main(){bar() * 2;} int bar() {return 2;}'
 assert 10 'int main(){ int a; a = 1; sum(4, a) * 2;} int sum(int a, int b) {return a + b;}'
 assert 13 'int main() {return fibonacci(7);} int fibonacci(int n){ if(n == 1) return 1; if(n == 2) return 1; return fibonacci(n - 1) + fibonacci(n - 2);}'
 
-assert 3 'int main() {int x, y; x = 3; y = &x; return *y;}'
+assert 3 'int main() {int x, *y; x = 3; y = &x; return *y;}'
 
 assert 5 'int main() {int x, *y; y = &x; *y = 5; return x;}'
 assert 10 'int main() {int x, *y, **z; y = &x; z = &y; **z = 5; return x + *y;}'
@@ -110,8 +110,12 @@ assert 4 'int main() {int *x; int y; y = 2; x = &y; sizeof(*x);}'
 
 assert 0 'int main() {int x[5]; return 0;}'
 
+assert 1 'int main() {int x[5]; *x = 1; return *x;}'
 assert 3 'int main() {int a[2]; *a = 1; *(a + 1) = 2; int *p; p = a; return *p + *(p + 1);}'
 assert 5 'int main() {int a[2]; a[0] = 3; a[1] = 2; return a[0] + a[1];}'
+
+assert 5 'int a; int main() {a = 5; return a;}'
+assert 3 'int a, b; int main() {a = 1; b = 2; return a + b;}'
 
 echo OK
 

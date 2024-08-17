@@ -89,11 +89,23 @@ bool at_eof(Token *token)
 bool is_top_level = true;
 
 LVar *locals = NULL;
+GVar *globals = NULL;
+GVar *globals_head = NULL;
+int gvar_id = 0;
 
-// 変数を名前で検索する。見つからなかった場合はNULLを返す。
+// ローカル変数を名前で検索する。見つからなかった場合はNULLを返す。
 LVar *find_lvar(Token *tok) {
   for (LVar *var = locals; var; var = var->next) {
     if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
+      return var;
+  }
+  return NULL;
+}
+
+// グローバル変数を名前で検索する。見つからなかった場合はNULLを返す。
+GVar *find_gvar(char *name, int len) {
+  for (GVar *var = globals; var; var = var->prev) {
+    if (var->strlen == len && !memcmp(name, var->name, var->strlen))
       return var;
   }
   return NULL;
@@ -164,28 +176,108 @@ void parse_def_argv(Token **tokenp, Node *node) {
   }
 }
 
-Node *expect_func_definition(Token **tokenp)
+Node *expect_func_or_var_definition(Token **tokenp)
 {
   if ((*tokenp)->kind != TK_INT) error_at((*tokenp)->str, "intの宣言をしていません");
   *tokenp = (*tokenp)->next;
 
-  locals = NULL;
+  Type *type = new_type(INT, NULL);
+  while (consume(tokenp, "*")) {
+    type = new_type(PTR, type);
+  }
 
   Token *tok = *tokenp;
-  if(!consume_ident(tokenp)) error_at((*tokenp)->str, "トップレベルは関数しか書けません");
+  if(!consume_ident(tokenp)) error_at((*tokenp)->str, "トップレベルは関数とグローバル変数しか書けません");
 
-  expect(tokenp, "(");
+  if(consume(tokenp, "(")) {
+    locals = NULL;
+    is_top_level = false;
+
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_FUNC_DEF;
+    node->funcName = calloc(1, tok->len);
+    node->type = type;
+    strncpy(node->funcName, tok->str, tok->len);
+
+    // 引数をパース )も読み飛ばしてる
+    parse_def_argv(tokenp, node);
+
+    expect(tokenp, "{");
+
+    return node;
+  }
 
   Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_FUNC_DEF;
-  node->funcName = calloc(1, tok->len);
-  strncpy(node->funcName, tok->str, tok->len);
+  node->kind = ND_GVAR_DEF;
+  GVar *gvar = find_gvar(tok->str, tok->len);
+  if (gvar) {
+    error_at((*tokenp)->str, "その変数はすでに宣言されています");
+  } else {
+    if (consume(tokenp, "[")) {
+      int array_size = expect_number(tokenp);
+      expect(tokenp, "]");
+      type = new_type(ARRAY, type);
+      type->array_size = array_size;
+    }
+    gvar = calloc(1, sizeof(GVar));
+    gvar->prev = globals;
+    gvar->name = tok->str;
+    gvar->strlen = tok->len;
+    gvar->type = type;
 
-  // 引数をパース )も読み飛ばしてる
-  parse_def_argv(tokenp, node);
+    gvar->data = calloc(1, gvar->type->size);
+    gvar->len = gvar->type->size;
+    sprintf(gvar->label, ".L.str%d", gvar_id++);
 
-  expect(tokenp, "{");
+    if (!globals) {
+      globals_head = gvar;
+    } else {
+      globals->next = gvar;
+    }
+    globals = gvar;
+  }
+  if (consume(tokenp, ";")) {
+    return node;
+  }
+  expect(tokenp, ",");
 
+  while (true) {
+    Type *type = new_type(INT, NULL);
+    while (consume(tokenp, "*")) {
+      type = new_type(PTR, type);
+    }
+    Token *tok = *tokenp;
+    GVar *gvar = find_gvar(tok->str, tok->len);
+    if(!consume_ident(tokenp)) error_at((*tokenp)->str, "トップレベルは関数とグローバル変数しか書けません");
+    if (gvar) {
+      error_at((*tokenp)->str, "その変数はすでに宣言されています");
+    } else {
+      if (consume(tokenp, "[")) {
+        int array_size = expect_number(tokenp);
+        expect(tokenp, "]");
+        type = new_type(ARRAY, type);
+        type->array_size = array_size;
+      }
+      gvar = calloc(1, sizeof(GVar));
+      gvar->prev = globals;
+      gvar->name = tok->str;
+      gvar->strlen = tok->len;
+      gvar->type = type;
+
+      node->type = gvar->type;
+
+      gvar->data = calloc(1, gvar->type->size);
+      gvar->len = gvar->type->size;
+      sprintf(gvar->label, ".L.str%d", gvar_id++);
+
+      globals->next = gvar;
+      globals = gvar;
+    }
+    if (consume(tokenp, ";")) {
+      break;
+    }
+    expect(tokenp, ",");
+  }
   return node;
 }
 
@@ -238,8 +330,7 @@ void program(Token **tokenp) {
 Node *stmt(Token **tokenp) {
   Node *node;
   if(is_top_level) {
-    node = expect_func_definition(tokenp);
-    is_top_level = false;
+    node = expect_func_or_var_definition(tokenp);
     return node;
   }
 
@@ -541,12 +632,18 @@ Node *primary(Token **tokenp) {
     }
 
     Node *node = calloc(1, sizeof(Node));
-    node->kind = ND_LVAR;
 
     LVar *lvar = find_lvar(tok);
+    GVar *gvar = find_gvar(tok->str, tok->len);
     if (lvar) {
+      node->kind = ND_LVAR;
       node->offset = lvar->offset;
       node->type = lvar->type;
+    } else if (gvar) {
+      node->kind = ND_GVAR;
+      node->type = gvar->type;
+      node->name = gvar->name;
+      node->len = gvar->strlen;
     } else {
       error_at(tok->str, "変数が宣言されていません");
     }
@@ -579,3 +676,9 @@ Node **parse(Token *tok) {
   return code;
 }
 
+GVar *get_gvars() {
+  if (globals) {
+    globals->next = NULL;
+  }
+  return globals_head;
+}
