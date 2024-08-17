@@ -64,6 +64,7 @@ void gen(Node *node) {
     case ND_GVAR:
       GVar *var = find_gvar(node->name, node->len);
       gen_gval(var);
+      if (node->type->ty == ARRAY) return;
       printf("  pop rax\n");
       printf("  mov rax, [rax]\n");
       printf("  push rax\n");

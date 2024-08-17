@@ -218,6 +218,7 @@ Node *expect_func_or_var_definition(Token **tokenp)
       expect(tokenp, "]");
       type = new_type(ARRAY, type);
       type->array_size = array_size;
+      type->size = type->ptr_to->size * array_size;
     }
     gvar = calloc(1, sizeof(GVar));
     gvar->prev = globals;
@@ -257,6 +258,7 @@ Node *expect_func_or_var_definition(Token **tokenp)
         expect(tokenp, "]");
         type = new_type(ARRAY, type);
         type->array_size = array_size;
+        type->size = type->ptr_to->size * array_size;
       }
       gvar = calloc(1, sizeof(GVar));
       gvar->prev = globals;
@@ -356,6 +358,7 @@ Node *stmt(Token **tokenp) {
           expect(tokenp, "]");
           type = new_type(ARRAY, type);
           type->array_size = array_size;
+          type->size = type->ptr_to->size * array_size;
         }
         lvar = calloc(1, sizeof(LVar));
         lvar->next = locals;
