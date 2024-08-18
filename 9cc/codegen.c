@@ -19,6 +19,11 @@ void gen_lval(Node *node) {
   printf("  push rax\n");
 }
 
+void gen_gval(GVar *var) {
+  printf("  lea rax, %s\n", var->label);
+  printf("  push rax\n");
+}
+
 int gen_label() {
   int static id = 0;
   return id++;
@@ -26,15 +31,60 @@ int gen_label() {
 
 void gen(Node *node) {
   switch(node->kind) {
+    case ND_LVAR_DEF:
+    case ND_GVAR_DEF:
+      return;
+    case ND_ASSIGN_DEREF:
+      if (node->lhs->kind != ND_LVAR && node->lhs->kind != ND_ASSIGN_DEREF) {
+        gen(node->lhs);
+        return;
+      }
+      if (node->lhs->kind == ND_LVAR) {
+        gen_lval(node->lhs);
+        // TODO: refine condition
+        if (node->lhs->type->ty == ARRAY) return;
+      }
+      if (node->lhs->kind == ND_ASSIGN_DEREF) {
+        gen(node->lhs);
+      }
+      printf("  pop rax\n");
+      printf("  mov rax, [rax]\n");
+      printf("  push rax\n");
+      return;
     case ND_NUM:
       printf("  push %d\n", node->val);
       return;
     case ND_LVAR:
       gen_lval(node);
+      if (node->type->ty == ARRAY) return;
       printf("  pop rax\n");
-      printf("  mov rax, [rax]\n");
+      if (node->type->size == 1) {
+        printf("  movsx rax, BYTE PTR [rax]\n");
+      } else {
+        printf("  mov rax, [rax]\n");
+      }
       printf("  push rax\n");
       return;
+    case ND_GVAR:
+      {
+        GVar *var = find_gvar(node->name, node->len);
+        gen_gval(var);
+        if (node->type->ty == ARRAY) return;
+        printf("  pop rax\n");
+        if (node->type->size == 1) {
+          printf("  movsx rax, BYTE PTR [rax]\n");
+        } else {
+          printf("  mov rax, [rax]\n");
+        }
+        printf("  push rax\n");
+        return;
+      }
+    case ND_STR:
+      {
+        GVar *var = find_gvar(node->name, node->len);
+        gen_gval(var);
+        return;
+      }
     case ND_FUNC:
       {
         // 関数呼び出しの際はRSPの値が16の倍数になっていることを前提としている関数がある
@@ -82,8 +132,8 @@ void gen(Node *node) {
         // プロローグ処理
         printf("  push rbp\n");
         printf("  mov rbp, rsp\n");
-        // 変数26個分の領域を確保する
-        printf("  sub rsp, 208\n");
+        // ローカル変数の数分の領域を確保する
+        printf("  sub rsp, %d\n", node->stack_size);
 
         // 第一引数はrdiレジスタ、、、のように決まってるみたい
         for(int i = 0; i < node->argc; i++) {
@@ -109,12 +159,24 @@ void gen(Node *node) {
         return;
       }
     case ND_ASSIGN:
-      gen_lval(node->lhs);
+      if (node->lhs->kind == ND_ASSIGN_DEREF) {
+        gen(node->lhs);
+      } else if (node->lhs->kind == ND_GVAR) {
+        GVar *var = find_gvar(node->lhs->name, node->lhs->len);
+        gen_gval(var);
+      } else {
+        gen_lval(node->lhs);
+      }
       gen(node->rhs);
 
-      printf("  pop rdi\n");
+      /* printf("  pop rdi\n"); */
+      printf("  pop r10\n");
       printf("  pop rax\n");
-      printf("  mov [rax], rdi\n");
+      if (node->lhs->type->size == 1){
+        printf("  mov [rax], r10b\n");
+      } else {
+        printf("  mov [rax], r10\n");
+      }
       /* printf("  push rdi\n"); */
       return;
     case ND_BLOCK:
@@ -197,7 +259,61 @@ void gen(Node *node) {
         printf(".Lend%d:\n", end_id);
         return;
       }
-    }
+    case ND_ADDR:
+      gen_lval(node->lhs);
+      return;
+    case ND_DEREF:
+      gen(node->lhs);
+      printf("  pop rax\n");
+      if (node->type->size == 1) {
+        printf("  mov r10b, [rax]\n");
+        printf("  movzx rax, r10b\n");
+      } else {
+        printf("  mov rax, [rax]\n");
+      }
+      printf("  push rax\n");
+      return;
+    case ND_ADD:
+      {
+        gen(node->lhs);
+        gen(node->rhs);
+        Type *type = node->type;
+        if (type->ty == PTR || type->ty == ARRAY) {
+          printf("  push %d\n", type->ptr_to->size);
+          printf("  pop rdi\n");
+          printf("  pop rax\n");
+          printf("  imul rax, rdi\n");
+          printf("  push rax\n");
+        }
+
+        printf("  pop rdi\n");
+        printf("  pop rax\n");
+
+        printf("  add rax, rdi\n");
+        printf("  push rax\n");
+        return;
+      }
+    case ND_SUB:
+      {
+        gen(node->lhs);
+        gen(node->rhs);
+        Type *type = node->type;
+        if (type->ty == PTR || type->ty == ARRAY) {
+          printf("  push %d\n", type->ptr_to->size);
+          printf("  pop rdi\n");
+          printf("  pop rax\n");
+          printf("  imul rax, rdi\n");
+          printf("  push rax\n");
+        }
+
+        printf("  pop rdi\n");
+        printf("  pop rax\n");
+
+        printf("  sub rax, rdi\n");
+        printf("  push rax\n");
+        return;
+      }
+  }
 
   gen(node->lhs);
   gen(node->rhs);
@@ -206,12 +322,6 @@ void gen(Node *node) {
   printf("  pop rax\n");
 
   switch (node->kind) {
-    case ND_ADD:
-      printf("  add rax, rdi\n");
-      break;
-    case ND_SUB:
-      printf("  sub rax, rdi\n");
-      break;
     case ND_MUL:
       printf("  imul rax, rdi\n");
       break;

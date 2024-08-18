@@ -73,9 +73,25 @@ Token *tokenize(char *p)
       continue;
     }
 
-    if (strchr("+-*/()<>=;{},", *p))
+    if (strchr("+-*/()<>=;{},&[]", *p))
     {
       cur = new_token(TK_RESERVED, cur, p++, 1);
+      continue;
+    }
+
+    if (strchr("\"", *p))
+    {
+      p++;
+      Token *tok= calloc(1, sizeof(Token));
+      tok->kind = TK_STR;
+      char *q = p;
+      while (*p != '"') p++;
+      tok->str = q;
+      tok->len = p - q + 1;
+      (tok->str)[tok->len - 1] = '\0';
+      p++;
+      cur->next = tok;
+      cur = tok;
       continue;
     }
 
@@ -106,6 +122,30 @@ Token *tokenize(char *p)
     if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
       cur = new_token(TK_RESERVED, cur, p, 6);
       p += 6;
+      continue;
+    }
+
+    if (strncmp(p, "sizeof", 6) == 0 && !is_alnum(p[6])) {
+      cur = new_token(TK_RESERVED, cur, p, 6);
+      p += 6;
+      continue;
+    }
+
+    if (strncmp(p, "int", 3) == 0 && !is_alnum(p[3])) {
+      Token *tok = calloc(1, sizeof(Token));
+      tok->kind = TK_INT;
+      cur->next = tok;
+      cur = tok;
+      p += 3;
+      continue;
+    }
+
+    if (strncmp(p, "char", 4) == 0 && !is_alnum(p[4])) {
+      Token *tok = calloc(1, sizeof(Token));
+      tok->kind = TK_CHAR;
+      cur->next = tok;
+      cur = tok;
+      p += 4;
       continue;
     }
 

@@ -11,6 +11,37 @@ Node *mul(Token **tokenp);
 Node *unary(Token **tokenp);
 Node *primary(Token **tokenp);
 
+bool is_type_token(TokenKind tkind) {
+  if (tkind == TK_INT || tkind == TK_CHAR) return true;
+  return false;
+}
+
+TypeKind get_type(TokenKind tkind) {
+  if (tkind == TK_INT) return INT;
+  if (tkind == TK_CHAR) return CHAR;
+  error("これは型ではありません");
+}
+
+Type *new_type(TypeKind ty, Type *ptr_to) {
+  Type *type = calloc(1, sizeof(Type));
+  type->ty = ty;
+  if (ty == PTR) {
+    type->size = 8;
+    type->ptr_to = ptr_to;
+    type->depth = ptr_to->depth + 1;
+  } else if (ty == ARRAY) {
+    type->ptr_to = ptr_to;
+    type->depth = ptr_to->depth + 1;
+  } else if (ty == INT) {
+    type->size = 4;
+    type->depth = 0;
+  } else if (ty == CHAR) {
+    type->size = 1;
+    type->depth = 0;
+  }
+  return type;
+}
+
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
@@ -69,6 +100,32 @@ bool at_eof(Token *token)
   return token->kind == TK_EOF;
 }
 
+bool is_top_level = true;
+
+LVar *locals = NULL;
+GVar *globals = NULL;
+GVar *globals_head = NULL;
+int gvar_id = 0;
+Node *current_func = NULL;
+
+// ローカル変数を名前で検索する。見つからなかった場合はNULLを返す。
+LVar *find_lvar(Token *tok) {
+  for (LVar *var = locals; var; var = var->next) {
+    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
+      return var;
+  }
+  return NULL;
+}
+
+// グローバル変数を名前で検索する。見つからなかった場合はNULLを返す。
+GVar *find_gvar(char *name, int len) {
+  for (GVar *var = globals; var; var = var->prev) {
+    if (var->strlen == len && !memcmp(name, var->name, var->strlen))
+      return var;
+  }
+  return NULL;
+}
+
 void parse_argv(Token **tokenp, Node *node) {
   if (!consume(tokenp, ")")) {
     int i = 0;
@@ -86,37 +143,192 @@ void parse_argv(Token **tokenp, Node *node) {
   }
 }
 
-bool is_top_level = true;
+void parse_def_argv(Token **tokenp, Node *node) {
+  if (!consume(tokenp, ")")) {
+    int i = 0;
+    node->argv = calloc(6, sizeof(Node));
+    while(true) {
+      if (!is_type_token((*tokenp)->kind)) error_at((*tokenp)->str, "型の宣言をしていません");
+      Type *type = new_type(get_type((*tokenp)->kind), NULL);
 
-Node *expect_func_definition(Token **tokenp)
+      *tokenp = (*tokenp)->next;
+      while (consume(tokenp, "*")) {
+        Type *ptr = new_type(PTR, type);
+        type = ptr;
+      }
+      Node *arg = calloc(1, sizeof(Node));
+      arg->kind = ND_LVAR;
+
+      current_func->stack_size += 8;
+
+      Token *token = *tokenp;
+      if(!consume_ident(tokenp)) {
+        error_at((*tokenp)->str, "変数名がありません");
+      }
+
+      LVar *lvar = calloc(1, sizeof(LVar));
+      lvar->next = locals;
+      lvar->name = token->str;
+      lvar->len = token->len;
+      if (locals) {
+        lvar->offset = locals->offset + 8;
+      } else {
+        lvar->offset = 8;
+      }
+      lvar->type = type;
+
+      arg->offset = lvar->offset;
+      arg->type = lvar->type;
+      locals = lvar;
+
+      node->argv[i] = arg;
+
+      i++;
+      if (consume(tokenp, ")")) {
+        break;
+      }
+      expect(tokenp, ",");
+    }
+    node->argc = i;
+  }
+}
+
+Node *expect_func_or_var_definition(Token **tokenp)
 {
-  Token *tok = *tokenp;
-  if(!consume_ident(tokenp)) error_at((*tokenp)->str, "トップレベルは関数しか書けません");
+  if (!is_type_token((*tokenp)->kind)) error_at((*tokenp)->str, "型の宣言をしていません");
+  Type *raw_type = new_type(get_type((*tokenp)->kind), NULL);
+  Type *type = raw_type;
 
-  expect(tokenp, "(");
+  *tokenp = (*tokenp)->next;
+
+  while (consume(tokenp, "*")) {
+    type = new_type(PTR, type);
+  }
+
+  Token *tok = *tokenp;
+  if(!consume_ident(tokenp)) error_at((*tokenp)->str, "トップレベルは関数とグローバル変数しか書けません");
+
+  if(consume(tokenp, "(")) {
+    locals = NULL;
+    is_top_level = false;
+
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_FUNC_DEF;
+    node->funcName = calloc(1, tok->len);
+    node->type = type;
+    node->stack_size = 0;
+    strncpy(node->funcName, tok->str, tok->len);
+
+    // 関数に必要なlocal varsの数を取得するための変数
+    current_func = node;
+
+    // 引数をパース )も読み飛ばしてる
+    parse_def_argv(tokenp, node);
+
+    expect(tokenp, "{");
+
+    return node;
+  }
 
   Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_FUNC_DEF;
-  node->funcName = calloc(1, tok->len);
-  strncpy(node->funcName, tok->str, tok->len);
+  node->kind = ND_GVAR_DEF;
+  GVar *gvar = find_gvar(tok->str, tok->len);
+  if (gvar) {
+    error_at((*tokenp)->str, "その変数はすでに宣言されています");
+  } else {
+    if (consume(tokenp, "[")) {
+      int array_size = expect_number(tokenp);
+      expect(tokenp, "]");
+      type = new_type(ARRAY, type);
+      type->array_size = array_size;
+      type->size = type->ptr_to->size * array_size;
+    }
+    gvar = calloc(1, sizeof(GVar));
+    gvar->prev = globals;
+    gvar->name = tok->str;
+    gvar->strlen = tok->len;
+    gvar->type = type;
 
-  // 引数をパース )も読み飛ばしてる
-  parse_argv(tokenp, node);
+    gvar->data = calloc(1, gvar->type->size);
+    gvar->len = gvar->type->size;
+    sprintf(gvar->label, ".L.str%d", gvar_id++);
 
-  expect(tokenp, "{");
+    if (!globals) {
+      globals_head = gvar;
+    } else {
+      globals->next = gvar;
+    }
+    globals = gvar;
+  }
+  if (consume(tokenp, ";")) {
+    return node;
+  }
+  expect(tokenp, ",");
 
+  while (true) {
+    Type *type = raw_type;
+    while (consume(tokenp, "*")) {
+      type = new_type(PTR, type);
+    }
+    Token *tok = *tokenp;
+    GVar *gvar = find_gvar(tok->str, tok->len);
+    if(!consume_ident(tokenp)) error_at((*tokenp)->str, "トップレベルは関数とグローバル変数しか書けません");
+    if (gvar) {
+      error_at((*tokenp)->str, "その変数はすでに宣言されています");
+    } else {
+      if (consume(tokenp, "[")) {
+        int array_size = expect_number(tokenp);
+        expect(tokenp, "]");
+        type = new_type(ARRAY, type);
+        type->array_size = array_size;
+        type->size = type->ptr_to->size * array_size;
+      }
+      gvar = calloc(1, sizeof(GVar));
+      gvar->prev = globals;
+      gvar->name = tok->str;
+      gvar->strlen = tok->len;
+      gvar->type = type;
+
+      node->type = gvar->type;
+
+      gvar->data = calloc(1, gvar->type->size);
+      gvar->len = gvar->type->size;
+      sprintf(gvar->label, ".L.str%d", gvar_id++);
+
+      globals->next = gvar;
+      globals = gvar;
+    }
+    if (consume(tokenp, ";")) {
+      break;
+    }
+    expect(tokenp, ",");
+  }
   return node;
 }
 
-LVar *locals = NULL;
-
-// 変数を名前で検索する。見つからなかった場合はNULLを返す。
-LVar *find_lvar(Token *tok) {
-  for (LVar *var = locals; var; var = var->next) {
-    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
-      return var;
+Type *get_result_type(Node *lhs, Node *rhs) {
+  if (
+    lhs && rhs
+      && lhs->type
+      && rhs->type
+      && (lhs->type->ty == PTR || lhs->type->ty == ARRAY)
+      && (rhs->type->ty == PTR || rhs->type->ty == ARRAY)
+  ) {
+    error("ポインタ同士の演算はできません");
+  } else if (
+    lhs
+      && lhs->type
+      && (lhs->type->ty == PTR || lhs->type->ty == ARRAY)
+  ) {
+    return lhs->type;
+  } else if (
+    rhs
+      && rhs->type
+      && (rhs->type->ty == PTR || rhs->type->ty == ARRAY)
+  ) {
+    return rhs->type;
   }
-  return NULL;
+  return new_type(INT, NULL);
 }
 
 Node *code[100];
@@ -131,6 +343,10 @@ void program(Token **tokenp) {
 }
 
 // stmt = expr ";" 
+// | "int" ident "(" (expr (, expr)*)? ")" "{"
+// | "}"
+// | "int" ("*")* ident (, ident)* ";"
+// | "int" ("*")* ident ("[" num "]");"
 // | "{" stmt* "}"
 // | "return" expr ";"
 // | "if" "(" expr ")" stmt ("else" stmt)?
@@ -139,8 +355,64 @@ void program(Token **tokenp) {
 Node *stmt(Token **tokenp) {
   Node *node;
   if(is_top_level) {
-    node = expect_func_definition(tokenp);
-    is_top_level = false;
+    node = expect_func_or_var_definition(tokenp);
+    return node;
+  }
+  if (is_type_token((*tokenp)->kind)) {
+    Type *raw_type = new_type(get_type((*tokenp)->kind), NULL);
+    *tokenp = (*tokenp)->next;
+
+    while (true) {
+      Type *type = raw_type;
+      while (consume(tokenp, "*")) {
+        type = new_type(PTR, type);
+      }
+
+      Token *tok = *tokenp;
+      if(!consume_ident(tokenp)) {
+        error_at((*tokenp)->str, "変数名がありません");
+      }
+      LVar *lvar = find_lvar(tok);
+      if (lvar) {
+        error_at((*tokenp)->str, "その変数はすでに宣言されています");
+      } else {
+        if (consume(tokenp, "[")) {
+          int array_size = expect_number(tokenp);
+          expect(tokenp, "]");
+          type = new_type(ARRAY, type);
+          type->array_size = array_size;
+          type->size = type->ptr_to->size * array_size;
+        }
+        lvar = calloc(1, sizeof(LVar));
+        lvar->next = locals;
+        lvar->name = tok->str;
+        lvar->len = tok->len;
+        lvar->type = type;
+        if (locals) {
+          /* TODO: スタック上に配列の要素分領域を確保する必要があるのか？ */
+          /* if (locals->type->ty == ARRAY) { */
+          /*   lvar->offset = locals->offset + locals->type->ptr_to->size * locals->type->array_size; */
+          /* } else { */
+          /*   lvar->offset = locals->offset + 8; */
+          /* } */
+          lvar->offset = locals->offset + 8;
+        } else {
+          lvar->offset = 8;
+        }
+        node->offset = lvar->offset;
+        node->type = lvar->type;
+
+        locals = lvar;
+
+        current_func->stack_size += 8;
+      }
+      if (consume(tokenp, ";")) {
+        break;
+      }
+      expect(tokenp, ",");
+    }
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_LVAR_DEF;
     return node;
   }
 
@@ -233,8 +505,46 @@ Node *expr(Token **tokenp) {
 // assign = equality ("=" equality)?
 Node *assign(Token **tokenp) {
   Node *node = equality(tokenp);
-  if (consume(tokenp, "="))
+  if (consume(tokenp, "=")) {
+    if ((*tokenp)->kind == TK_STR) {
+      Node *rhs= calloc(1, sizeof(Node));
+
+      GVar *gvar = calloc(1, sizeof(GVar));
+      gvar->prev = globals;
+      gvar->type = new_type(ARRAY, new_type(CHAR, NULL));
+      gvar->type->array_size = (*tokenp)->len;
+      gvar->type->size = gvar->type->ptr_to->size * gvar->type->array_size;
+
+      rhs->type = gvar->type;
+      rhs->kind = ND_STR;
+      gvar->strlen = 7; // TODO: とりあえず7文字固定
+      rhs->len = gvar->strlen;
+
+      gvar->data = (*tokenp)->str;
+      gvar->len = gvar->type->size;
+      sprintf(gvar->label, ".L.str%d", gvar_id++);
+      rhs->name = gvar->label;
+      gvar->name = gvar->label;
+
+      if (globals) {
+        globals->next = gvar;
+      } else {
+        globals_head = gvar;
+      }
+      globals = gvar;
+
+      *tokenp = (*tokenp)->next;
+      return new_node(ND_ASSIGN, node, rhs);
+    }
+
+    Node *cur = node;
+
+    while (cur->kind == ND_DEREF) {
+      cur->kind = ND_ASSIGN_DEREF;
+      cur = cur->lhs;
+    }
     node = new_node(ND_ASSIGN, node, equality(tokenp));
+  }
   return node;
 }
 
@@ -284,14 +594,21 @@ Node *relational(Token **tokenp) {
 // add = mul ("+" mul | "-" mul)*
 Node *add(Token **tokenp) {
   Node *node = mul(tokenp);
+  Node *rhs;
 
   for (;;) {
     if (consume(tokenp, "+")) {
-      node = new_node(ND_ADD, node, mul(tokenp));
+      Node *rhs = mul(tokenp);
+      Type *type = get_result_type(node, rhs);
+      node = new_node(ND_ADD, node, rhs);
+      node->type = type;
       continue;
     }
     if (consume(tokenp, "-")) {
-      node = new_node(ND_SUB, node, mul(tokenp));
+      Node *rhs = mul(tokenp);
+      Type *type = get_result_type(node, rhs);
+      node = new_node(ND_SUB, node, rhs);
+      node->type = type;
       continue;
     }
 
@@ -317,18 +634,41 @@ Node *mul(Token **tokenp) {
   }
 }
 
-// unary = ("+" | "-")? unary | pimary
+// unary = "sizeof" unary
+// | ("+" | "-")? unary 
+// | "*" unary
+// | "&" unary
+// | primary
 Node *unary(Token **tokenp) {
   if (consume(tokenp, "+")) {
     return unary(tokenp);
   }
   if (consume(tokenp, "-")) {
-    return new_node(ND_SUB, new_node_num(0), unary(tokenp));
+    Node *rhs = unary(tokenp);
+    Node *node = new_node(ND_SUB, new_node_num(0), rhs);
+    node->type = get_result_type(NULL, rhs);
+    return node;
+  }
+  if (consume(tokenp, "&")) {
+    return new_node(ND_ADDR, unary(tokenp), NULL);
+  }
+  if (consume(tokenp, "*")) {
+    Node* node = new_node(ND_DEREF, unary(tokenp), NULL);
+    node->type = node->lhs->type->ptr_to;
+    return node;
+  }
+  if (consume(tokenp, "sizeof")) {
+    Node *target = unary(tokenp);
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_NUM;
+    node->val = get_result_type(target, NULL)->size;
+
+    return node;
   }
   return primary(tokenp);
 }
 
-// primary = num | ident ("(" (exp (, expr)*)? ")")? | "(" expr ")" 
+// primary = num | ident ("(" (exp (, expr)*)? ")")? | "(" expr ")" | ident[expr]
 Node *primary(Token **tokenp) {
   // 次のトークンが"("なら，"(" expr ")"のはず
   if (consume(tokenp, "(")) {
@@ -343,37 +683,45 @@ Node *primary(Token **tokenp) {
       Node *node = calloc(1, sizeof(Node));
       node->kind = ND_FUNC;
       node->funcName = calloc(1, tok->len);
-      strncpy(node->funcName, tok->str, tok->len);;
+      strncpy(node->funcName, tok->str, tok->len);
 
       parse_argv(tokenp, node);
 
       return node;
     }
 
-
     Node *node = calloc(1, sizeof(Node));
-    node->kind = ND_LVAR;
 
     LVar *lvar = find_lvar(tok);
+    GVar *gvar = find_gvar(tok->str, tok->len);
     if (lvar) {
+      node->kind = ND_LVAR;
       node->offset = lvar->offset;
+      node->type = lvar->type;
+    } else if (gvar) {
+      node->kind = ND_GVAR;
+      node->type = gvar->type;
+      node->name = gvar->name;
+      node->len = gvar->strlen;
     } else {
-      lvar = calloc(1, sizeof(LVar));
-      lvar->next = locals;
-      lvar->name = tok->str;
-      lvar->len = tok->len;
-      if (locals) {
-        lvar->offset = locals->offset + 8;
-      } else {
-        lvar->offset = 8;
-      }
-      node->offset = lvar->offset;
-      locals = lvar;
+      error_at(tok->str, "変数が宣言されていません");
     }
+
+    // 配列の場合
+    if (consume(tokenp, "[")) {
+      Node *deref = calloc(1, sizeof(Node));
+      deref->kind = ND_DEREF;
+      Node *rhs = expr(tokenp);
+      Node *addition = new_node(ND_ADD, node, rhs);
+      addition->type = get_result_type(node, rhs);
+      deref->lhs = addition;
+      deref->type = addition->type->ptr_to;
+      expect(tokenp, "]");
+      node = deref;
+    }
+
     return node;
   }
-
-
 
   // そうでなければ数値のはず
   return new_node_num(expect_number(tokenp));
@@ -387,3 +735,9 @@ Node **parse(Token *tok) {
   return code;
 }
 
+GVar *get_gvars() {
+  if (globals) {
+    globals->next = NULL;
+  }
+  return globals_head;
+}
