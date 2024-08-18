@@ -11,6 +11,17 @@ Node *mul(Token **tokenp);
 Node *unary(Token **tokenp);
 Node *primary(Token **tokenp);
 
+bool is_type_token(TokenKind tkind) {
+  if (tkind == TK_INT || tkind == TK_CHAR) return true;
+  return false;
+}
+
+TypeKind get_type(TokenKind tkind) {
+  if (tkind == TK_INT) return INT;
+  if (tkind == TK_CHAR) return CHAR;
+  error("これは型ではありません");
+}
+
 Type *new_type(TypeKind ty, Type *ptr_to) {
   Type *type = calloc(1, sizeof(Type));
   type->ty = ty;
@@ -23,6 +34,9 @@ Type *new_type(TypeKind ty, Type *ptr_to) {
     type->depth = ptr_to->depth + 1;
   } else if (ty == INT) {
     type->size = 4;
+    type->depth = 0;
+  } else if (ty == CHAR) {
+    type->size = 1;
     type->depth = 0;
   }
   return type;
@@ -134,10 +148,10 @@ void parse_def_argv(Token **tokenp, Node *node) {
     int i = 0;
     node->argv = calloc(6, sizeof(Node));
     while(true) {
-      if ((*tokenp)->kind != TK_INT) error_at((*tokenp)->str, "intの宣言をしていません");
-      *tokenp = (*tokenp)->next;
+      if (!is_type_token((*tokenp)->kind)) error_at((*tokenp)->str, "型の宣言をしていません");
+      Type *type = new_type(get_type((*tokenp)->kind), NULL);
 
-      Type *type = new_type(INT, NULL);
+      *tokenp = (*tokenp)->next;
       while (consume(tokenp, "*")) {
         Type *ptr = new_type(PTR, type);
         type = ptr;
@@ -181,10 +195,12 @@ void parse_def_argv(Token **tokenp, Node *node) {
 
 Node *expect_func_or_var_definition(Token **tokenp)
 {
-  if ((*tokenp)->kind != TK_INT) error_at((*tokenp)->str, "intの宣言をしていません");
+  if (!is_type_token((*tokenp)->kind)) error_at((*tokenp)->str, "型の宣言をしていません");
+  Type *raw_type = new_type(get_type((*tokenp)->kind), NULL);
+  Type *type = raw_type;
+
   *tokenp = (*tokenp)->next;
 
-  Type *type = new_type(INT, NULL);
   while (consume(tokenp, "*")) {
     type = new_type(PTR, type);
   }
@@ -250,7 +266,7 @@ Node *expect_func_or_var_definition(Token **tokenp)
   expect(tokenp, ",");
 
   while (true) {
-    Type *type = new_type(INT, NULL);
+    Type *type = raw_type;
     while (consume(tokenp, "*")) {
       type = new_type(PTR, type);
     }
@@ -342,12 +358,12 @@ Node *stmt(Token **tokenp) {
     node = expect_func_or_var_definition(tokenp);
     return node;
   }
-
-  if ((*tokenp)->kind == TK_INT) {
+  if (is_type_token((*tokenp)->kind)) {
+    Type *raw_type = new_type(get_type((*tokenp)->kind), NULL);
     *tokenp = (*tokenp)->next;
 
     while (true) {
-      Type *type = new_type(INT, NULL);
+      Type *type = raw_type;
       while (consume(tokenp, "*")) {
         type = new_type(PTR, type);
       }

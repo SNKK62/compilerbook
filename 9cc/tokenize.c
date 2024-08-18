@@ -124,6 +124,15 @@ Token *tokenize(char *p)
       continue;
     }
 
+    if (strncmp(p, "char", 4) == 0 && !is_alnum(p[4])) {
+      Token *tok = calloc(1, sizeof(Token));
+      tok->kind = TK_CHAR;
+      cur->next = tok;
+      cur = tok;
+      p += 4;
+      continue;
+    }
+
     if (isdigit(*p))
     {
       cur = new_token(TK_NUM, cur, p, 0);

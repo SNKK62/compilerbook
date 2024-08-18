@@ -58,7 +58,11 @@ void gen(Node *node) {
       gen_lval(node);
       if (node->type->ty == ARRAY) return;
       printf("  pop rax\n");
-      printf("  mov rax, [rax]\n");
+      if (node->type->size == 1) {
+        printf("  movsx rax, BYTE PTR [rax]\n");
+      } else {
+        printf("  mov rax, [rax]\n");
+      }
       printf("  push rax\n");
       return;
     case ND_GVAR:
@@ -66,7 +70,11 @@ void gen(Node *node) {
       gen_gval(var);
       if (node->type->ty == ARRAY) return;
       printf("  pop rax\n");
-      printf("  mov rax, [rax]\n");
+      if (node->type->size == 1) {
+        printf("  movsx rax, BYTE PTR [rax]\n");
+      } else {
+        printf("  mov rax, [rax]\n");
+      }
       printf("  push rax\n");
       return;
     case ND_FUNC:
@@ -153,9 +161,14 @@ void gen(Node *node) {
       }
       gen(node->rhs);
 
-      printf("  pop rdi\n");
+      /* printf("  pop rdi\n"); */
+      printf("  pop r10\n");
       printf("  pop rax\n");
-      printf("  mov [rax], rdi\n");
+      if (node->lhs->type->size == 1){
+        printf("  mov [rax], r10b\n");
+      } else {
+        printf("  mov [rax], r10\n");
+      }
       /* printf("  push rdi\n"); */
       return;
     case ND_BLOCK:

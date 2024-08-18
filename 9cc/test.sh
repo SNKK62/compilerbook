@@ -119,5 +119,8 @@ assert 3 'int a, b; int main() {a = 1; b = 2; return a + b;}'
 assert 3 'int a[2]; int main() {a[0] = 1; a[1] = 2; return a[0] + a[1];}'
 assert 2 'int a; int main(){a = 1; int a; a = 2; return a;}'
 
+assert 3 'int main() {char a; a = 3; return a;}'
+assert 3 'int main() {char x[3]; x[0] = -1; x[1] = 2; int y; y = 4; return x[0] + y;}'
+
 echo OK
 

@@ -14,6 +14,7 @@ typedef enum
   TK_NUM,      // integer token
   TK_EOF,      // token for the end of input
   TK_INT,      // token for int
+  TK_CHAR,     // token for char
   TK_SIZEOF,   // token for sizeof
 } TokenKind;
 
@@ -29,6 +30,7 @@ struct Token
 
 typedef enum TypeKind {
   INT,
+  CHAR,
   PTR,
   ARRAY,
 } TypeKind;
