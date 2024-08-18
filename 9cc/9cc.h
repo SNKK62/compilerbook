@@ -15,6 +15,7 @@ typedef enum
   TK_EOF,      // token for the end of input
   TK_INT,      // token for int
   TK_CHAR,     // token for char
+  TK_STR,      // token for string
   TK_SIZEOF,   // token for sizeof
 } TokenKind;
 
@@ -108,6 +109,7 @@ typedef enum {
   ND_FUNC_DEF_END,  // end of function definition
   ND_LVAR_DEF, // definition of local variable
   ND_GVAR_DEF, // definition of global variable
+  ND_STR, // string
 } NodeKind;
 
 typedef struct Node Node;

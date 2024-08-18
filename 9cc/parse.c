@@ -506,8 +506,39 @@ Node *expr(Token **tokenp) {
 Node *assign(Token **tokenp) {
   Node *node = equality(tokenp);
   if (consume(tokenp, "=")) {
+    if ((*tokenp)->kind == TK_STR) {
+      Node *rhs= calloc(1, sizeof(Node));
+
+      GVar *gvar = calloc(1, sizeof(GVar));
+      gvar->prev = globals;
+      gvar->type = new_type(ARRAY, new_type(CHAR, NULL));
+      gvar->type->array_size = (*tokenp)->len;
+      gvar->type->size = gvar->type->ptr_to->size * gvar->type->array_size;
+
+      rhs->type = gvar->type;
+      rhs->kind = ND_STR;
+      gvar->strlen = 7; // TODO: とりあえず7文字固定
+      rhs->len = gvar->strlen;
+
+      gvar->data = (*tokenp)->str;
+      gvar->len = gvar->type->size;
+      sprintf(gvar->label, ".L.str%d", gvar_id++);
+      rhs->name = gvar->label;
+      gvar->name = gvar->label;
+
+      if (globals) {
+        globals->next = gvar;
+      } else {
+        globals_head = gvar;
+      }
+      globals = gvar;
+
+      *tokenp = (*tokenp)->next;
+      return new_node(ND_ASSIGN, node, rhs);
+    }
 
     Node *cur = node;
+
     while (cur->kind == ND_DEREF) {
       cur->kind = ND_ASSIGN_DEREF;
       cur = cur->lhs;

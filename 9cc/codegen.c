@@ -66,17 +66,25 @@ void gen(Node *node) {
       printf("  push rax\n");
       return;
     case ND_GVAR:
-      GVar *var = find_gvar(node->name, node->len);
-      gen_gval(var);
-      if (node->type->ty == ARRAY) return;
-      printf("  pop rax\n");
-      if (node->type->size == 1) {
-        printf("  movsx rax, BYTE PTR [rax]\n");
-      } else {
-        printf("  mov rax, [rax]\n");
+      {
+        GVar *var = find_gvar(node->name, node->len);
+        gen_gval(var);
+        if (node->type->ty == ARRAY) return;
+        printf("  pop rax\n");
+        if (node->type->size == 1) {
+          printf("  movsx rax, BYTE PTR [rax]\n");
+        } else {
+          printf("  mov rax, [rax]\n");
+        }
+        printf("  push rax\n");
+        return;
       }
-      printf("  push rax\n");
-      return;
+    case ND_STR:
+      {
+        GVar *var = find_gvar(node->name, node->len);
+        gen_gval(var);
+        return;
+      }
     case ND_FUNC:
       {
         // 関数呼び出しの際はRSPの値が16の倍数になっていることを前提としている関数がある
@@ -257,7 +265,12 @@ void gen(Node *node) {
     case ND_DEREF:
       gen(node->lhs);
       printf("  pop rax\n");
-      printf("  mov rax, [rax]\n");
+      if (node->type->size == 1) {
+        printf("  mov r10b, [rax]\n");
+        printf("  movzx rax, r10b\n");
+      } else {
+        printf("  mov rax, [rax]\n");
+      }
       printf("  push rax\n");
       return;
     case ND_ADD:

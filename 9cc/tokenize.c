@@ -79,6 +79,22 @@ Token *tokenize(char *p)
       continue;
     }
 
+    if (strchr("\"", *p))
+    {
+      p++;
+      Token *tok= calloc(1, sizeof(Token));
+      tok->kind = TK_STR;
+      char *q = p;
+      while (*p != '"') p++;
+      tok->str = q;
+      tok->len = p - q + 1;
+      (tok->str)[tok->len - 1] = '\0';
+      p++;
+      cur->next = tok;
+      cur = tok;
+      continue;
+    }
+
     if (strncmp(p, "if", 2) == 0 && !is_alnum(p[2])) {
       cur = new_token(TK_RESERVED, cur, p, 2);
       p += 2;

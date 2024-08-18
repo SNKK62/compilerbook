@@ -122,5 +122,9 @@ assert 2 'int a; int main(){a = 1; int a; a = 2; return a;}'
 assert 3 'int main() {char a; a = 3; return a;}'
 assert 3 'int main() {char x[3]; x[0] = -1; x[1] = 2; int y; y = 4; return x[0] + y;}'
 
+assert 97 'int main() {char *p; p = "abc"; return p[0];}'
+assert 98 'int main() {char *p; p = "abc"; return p[1];}'
+assert 99 'int main() {char *p; p = "abc"; return p[2];}'
+
 echo OK
 
